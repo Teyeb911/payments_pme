@@ -1,0 +1,46 @@
+[
+  {
+    "model": "abonnements.plan",
+    "pk": 1,
+    "fields": {
+      "type": "gratuit",
+      "prix_mensuel": "0.00",
+      "description": "Accès de base. Transactions internes gratuites illimitées.",
+      "nb_comptes_max": 1,
+      "is_actif": true
+    }
+  },
+  {
+    "model": "abonnements.plan",
+    "pk": 2,
+    "fields": {
+      "type": "basic",
+      "prix_mensuel": "990.00",
+      "description": "Jusqu'à 3 comptes externes. Support email.",
+      "nb_comptes_max": 3,
+      "is_actif": true
+    }
+  },
+  {
+    "model": "abonnements.plan",
+    "pk": 3,
+    "fields": {
+      "type": "pro",
+      "prix_mensuel": "2490.00",
+      "description": "Jusqu'à 10 comptes externes. Rapports avancés. Support prioritaire.",
+      "nb_comptes_max": 10,
+      "is_actif": true
+    }
+  },
+  {
+    "model": "abonnements.plan",
+    "pk": 4,
+    "fields": {
+      "type": "enterprise",
+      "prix_mensuel": "7990.00",
+      "description": "Comptes externes illimités. API dédiée. Account manager.",
+      "nb_comptes_max": 999,
+      "is_actif": true
+    }
+  }
+]
