@@ -37,6 +37,7 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'django_filters',
+    'django_extensions',
 ]
 
 LOCAL_APPS = [
@@ -186,3 +187,6 @@ CORS_ALLOWED_ORIGINS = config(
     cast=Csv(),
 )
 CORS_ALLOW_CREDENTIALS = True
+
+# ── Windows Desktop Flutter (pas de port fixe) ────────
+CORS_ALLOW_ALL_ORIGINS = True   # ✅ en développement seulement

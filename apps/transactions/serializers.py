@@ -10,7 +10,7 @@ class TransactionSerializer(serializers.ModelSerializer):
     expediteur_email  = serializers.EmailField(source='wallet_expediteur.commercant.email', read_only=True)
     recepteur_email   = serializers.EmailField(source='wallet_recepteur.commercant.email',  read_only=True)
     montant_total     = serializers.DecimalField(
-        max_digits=15, decimal_places=2, read_only=True, source='montant_total'
+        max_digits=15, decimal_places=2, read_only=True
     )
 
     class Meta:
@@ -55,4 +55,4 @@ class DashboardSerializer(serializers.Serializer):
     total_envoye       = serializers.DecimalField(max_digits=15, decimal_places=2)
     total_recu         = serializers.DecimalField(max_digits=15, decimal_places=2)
     nb_transactions    = serializers.IntegerField()
-    dernières_transactions = TransactionSerializer(many=True)
+    dernieres_transactions = TransactionSerializer(many=True)

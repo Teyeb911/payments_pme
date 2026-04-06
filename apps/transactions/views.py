@@ -1,6 +1,7 @@
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,11 +19,7 @@ from .serializers import (
 from .services import TransfertService
 
 
-# ─────────────────────────────────────────────────────
-#  Historique — commerçant connecté
-# ─────────────────────────────────────────────────────
 class HistoriqueView(generics.ListAPIView):
-    """GET — toutes les transactions du commerçant (envoyées + reçues)."""
     serializer_class   = TransactionSerializer
     permission_classes = [IsAuthenticated, IsCommerçant]
     filterset_class    = TransactionFilter
@@ -41,9 +38,6 @@ class HistoriqueView(generics.ListAPIView):
         )
 
 
-# ─────────────────────────────────────────────────────
-#  Détail transaction
-# ─────────────────────────────────────────────────────
 class TransactionDetailView(generics.RetrieveAPIView):
     serializer_class   = TransactionSerializer
     permission_classes = [IsAuthenticated, IsCommerçant]
@@ -55,11 +49,7 @@ class TransactionDetailView(generics.RetrieveAPIView):
         )
 
 
-# ─────────────────────────────────────────────────────
-#  Transfert interne (GRATUIT)
-# ─────────────────────────────────────────────────────
 class TransfertInterneView(APIView):
-    """POST — transfert wallet → wallet (frais = 0)."""
     permission_classes = [IsAuthenticated, IsCommerçant]
 
     def post(self, request):
@@ -75,10 +65,15 @@ class TransfertInterneView(APIView):
                 montant     = serializer.validated_data['montant'],
                 description = serializer.validated_data.get('description', ''),
             )
-        except ValueError as e:
+        except (ValueError, ValidationError) as e:
             return Response(
                 {'success': False, 'message': str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            return Response(
+                {'success': False, 'message': f'Erreur inattendue: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         return Response(
@@ -90,9 +85,6 @@ class TransfertInterneView(APIView):
         )
 
 
-# ─────────────────────────────────────────────────────
-#  Annuler une transaction
-# ─────────────────────────────────────────────────────
 class AnnulerTransactionView(APIView):
     permission_classes = [IsAuthenticated, IsCommerçant]
 
@@ -100,7 +92,7 @@ class AnnulerTransactionView(APIView):
         transaction = get_object_or_404(Transaction, id=pk)
         try:
             transaction = TransfertService.annuler(transaction, request.user)
-        except (ValueError, PermissionError) as e:
+        except (ValueError, PermissionError, ValidationError) as e:
             return Response(
                 {'success': False, 'message': str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -112,11 +104,7 @@ class AnnulerTransactionView(APIView):
         ))
 
 
-# ─────────────────────────────────────────────────────
-#  Dashboard
-# ─────────────────────────────────────────────────────
 class DashboardView(APIView):
-    """GET — résumé financier complet du commerçant."""
     permission_classes = [IsAuthenticated, IsCommerçant]
 
     def get(self, request):
@@ -135,21 +123,18 @@ class DashboardView(APIView):
         ).order_by('-created_at')[:10]
 
         data = {
-            'wallet_balance':          wallet.balance,
-            'total_envoye':            qs_emises.aggregate(t=Sum('montant'))['t'] or 0,
-            'total_recu':              qs_recues.aggregate(t=Sum('montant'))['t'] or 0,
-            'nb_transactions':         qs_emises.count() + qs_recues.count(),
-            'dernières_transactions':  dernieres,
+            'wallet_balance':         wallet.balance,
+            'total_envoye':           qs_emises.aggregate(t=Sum('montant'))['t'] or 0,
+            'total_recu':             qs_recues.aggregate(t=Sum('montant'))['t'] or 0,
+            'nb_transactions':        qs_emises.count() + qs_recues.count(),
+            'dernieres_transactions':dernieres,
         }
 
         return Response(success_response(data=DashboardSerializer(data).data))
 
 
-# ─────────────────────────────────────────────────────
-#  Admin — toutes les transactions
-# ─────────────────────────────────────────────────────
 class AllTransactionsView(generics.ListAPIView):
-    queryset           = Transaction.objects.select_related(
+    queryset = Transaction.objects.select_related(
         'commercant',
         'wallet_expediteur__commercant',
         'wallet_recepteur__commercant',
