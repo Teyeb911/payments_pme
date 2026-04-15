@@ -2,6 +2,7 @@ from pathlib import Path
 from datetime import timedelta
 import sys
 from decouple import config, Csv
+import dj_database_url
 
 # ─────────────────────────────────────────────────────
 #  Paths + sys.path fix (Windows + Linux)
@@ -16,7 +17,7 @@ if str(BASE_DIR) not in sys.path:
 # ─────────────────────────────────────────────────────
 SECRET_KEY    = config('SECRET_KEY')
 DEBUG         = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='config-ap28.onrender.com', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost', cast=Csv())
 
 
 # ─────────────────────────────────────────────────────
