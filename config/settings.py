@@ -176,9 +176,7 @@ SIMPLE_JWT = {
 # ─────────────────────────────────────────────────────
 #  CORS (Production)
 # ─────────────────────────────────────────────────────
-
-CORS_ALLOW_ALL_ORIGINS = False
-
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ORIGINS',
     default='https://stellar-semolina-dd8ede.netlify.app',
