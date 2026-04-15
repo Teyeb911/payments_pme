@@ -9,30 +9,36 @@ User = get_user_model()
 #  Register
 # ─────────────────────────────────────────────────────
 class RegisterSerializer(serializers.ModelSerializer):
-    password  = serializers.CharField(write_only=True, min_length=8, style={'input_type': 'password'})
-    password2 = serializers.CharField(write_only=True, style={'input_type': 'password'})
+    password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        style={'input_type': 'password'}
+    )
+    password2 = serializers.CharField(
+        write_only=True,
+        style={'input_type': 'password'}
+    )
 
     class Meta:
-        model  = User
-        fields = ['email', 'nom', 'telephone', 'adresse', 'password', 'password2']
+        model = User
+        fields = [
+            'email',
+            'nom',
+            'telephone',
+            'adresse',
+            'password',
+            'password2'
+        ]
 
-    def validate(self, data):
-    if data.get('password') != data.get('password2'):
-        raise serializers.ValidationError({
-            'password': 'Les mots de passe ne correspondent pas.'})
-    return data
+    def validate(self, data: dict) -> dict:
+        if data['password'] != data.pop('password2'):
+            raise serializers.ValidationError({
+                'password': 'Les mots de passe ne correspondent pas.'
+            })
+        return data
 
-    def create(self, validated_data):
-    validated_data.pop('password2', None)
-
-    password = validated_data.pop('password')
-
-    user = User(**validated_data)
-    user.set_password(password)
-    user.save()
-
-    return user
-
+    def create(self, validated_data: dict) -> User:
+        return User.objects.create_user(**validated_data)
 
 # ─────────────────────────────────────────────────────
 #  User read/update
