@@ -16,13 +16,22 @@ class RegisterSerializer(serializers.ModelSerializer):
         model  = User
         fields = ['email', 'nom', 'telephone', 'adresse', 'password', 'password2']
 
-    def validate(self, data: dict) -> dict:
-        if data['password'] != data.pop('password2'):
-            raise serializers.ValidationError({'password': 'Les mots de passe ne correspondent pas.'})
-        return data
+    def validate(self, data):
+    if data.get('password') != data.get('password2'):
+        raise serializers.ValidationError({
+            'password': 'Les mots de passe ne correspondent pas.'})
+    return data
 
-    def create(self, validated_data: dict) -> User:
-        return User.objects.create_user(**validated_data)
+    def create(self, validated_data):
+    validated_data.pop('password2', None)
+
+    password = validated_data.pop('password')
+
+    user = User(**validated_data)
+    user.set_password(password)
+    user.save()
+
+    return user
 
 
 # ─────────────────────────────────────────────────────
