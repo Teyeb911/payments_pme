@@ -186,7 +186,7 @@ CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ORIGINS',
-    default='https://ton-app.netlify.app',
+    default='https://stellar-semolina-dd8ede.netlify.app',
     cast=Csv(),
 )
 
