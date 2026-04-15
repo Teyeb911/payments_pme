@@ -179,14 +179,15 @@ SIMPLE_JWT = {
 
 
 # ─────────────────────────────────────────────────────
-#  CORS
+#  CORS (Production)
 # ─────────────────────────────────────────────────────
+
+CORS_ALLOW_ALL_ORIGINS = False
+
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ORIGINS',
-    default='http://localhost:3000',
+    default='https://ton-app.netlify.app',
     cast=Csv(),
 )
-CORS_ALLOW_CREDENTIALS = True
 
-# ── Windows Desktop Flutter (pas de port fixe) ────────
-CORS_ALLOW_ALL_ORIGINS = True   # ✅ en développement seulement
+CORS_ALLOW_CREDENTIALS = True
