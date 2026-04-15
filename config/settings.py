@@ -16,7 +16,7 @@ if str(BASE_DIR) not in sys.path:
 # ─────────────────────────────────────────────────────
 SECRET_KEY    = config('SECRET_KEY')
 DEBUG         = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='config-ap28.onrender.com', cast=Csv())
 
 
 # ─────────────────────────────────────────────────────
