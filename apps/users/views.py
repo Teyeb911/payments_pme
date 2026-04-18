@@ -19,6 +19,26 @@ from .serializers import (
 
 User = get_user_model()
 
+from rest_framework.permissions import AllowAny
+
+class CheckEmailView(APIView):
+    """POST — vérifie si un email existe déjà."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip()
+        if not email:
+            return Response({'detail': 'Email requis.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        exists = User.objects.filter(email=email).exists()
+
+        if exists:
+            return Response({'exists': True}, status=status.HTTP_200_OK)
+        else:
+            return Response({'exists': False}, status=status.HTTP_404_NOT_FOUND)
+
+
 
 # ─────────────────────────────────────────────────────
 #  Register
