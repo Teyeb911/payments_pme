@@ -11,7 +11,6 @@ if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
 
-# ─────────────────────────────────────────────────────
 #  Security
 # ─────────────────────────────────────────────────────
 SECRET_KEY    = config('SECRET_KEY')
@@ -92,7 +91,21 @@ TEMPLATES = [
     },
 ]
 
+# Email configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # ou votre serveur SMTP
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL=EMAIL_HOST_USER
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'trackpay-verif',
+    }
+}
 # ─────────────────────────────────────────────────────
 #  Database — PostgreSQL
 # ─────────────────────────────────────────────────────
@@ -126,7 +139,7 @@ AUTH_PASSWORD_VALIDATORS = [
 #  Internationalization
 # ─────────────────────────────────────────────────────
 LANGUAGE_CODE = 'fr-fr'
-TIME_ZONE     = 'Africa/Algiers'
+TIME_ZONE     = 'Africa/Nouakchott'
 USE_I18N      = True
 USE_TZ        = True
 
@@ -188,5 +201,5 @@ CORS_ALLOWED_ORIGINS = config(
 )
 CORS_ALLOW_CREDENTIALS = True
 
-# ── Windows Desktop Flutter (pas de port fixe) ────────
+# ── Windows Daesktop Flutter (pas de port fixe) ────────
 CORS_ALLOW_ALL_ORIGINS = True   # ✅ en développement seulement
