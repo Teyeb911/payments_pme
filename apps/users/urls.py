@@ -5,7 +5,8 @@ from .views import (
     RegisterView, LoginView, LogoutView,
     MeView, ChangePasswordView,
     UserListView, UserDetailView,CheckEmailView,
-    SendVerificationCodeView,VerifyCodeView,
+    SendVerificationCodeView,VerifyCodeView,ForgotPasswordView,
+VerifyResetCodeView, ResetPasswordView,
 )
 
 app_name = 'auth'
@@ -17,6 +18,12 @@ urlpatterns = [
     path('logout/',          LogoutView.as_view(),         name='logout'),
     path('token/refresh/',   TokenRefreshView.as_view(),   name='token-refresh'),
     path('check-email/', CheckEmailView.as_view(), name='check-email'),
+
+     # Reset password
+    path('forgot-password/',        ForgotPasswordView.as_view(),    name='forgot-password'),
+    path('verify-reset-code/',      VerifyResetCodeView.as_view(),   name='verify-reset-code'),
+    path('reset-password/',         ResetPasswordView.as_view(),     name='reset-password'),
+
     # Profile
     path('me/',              MeView.as_view(),             name='me'),
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),

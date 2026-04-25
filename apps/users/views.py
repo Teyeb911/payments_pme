@@ -148,6 +148,132 @@ class LogoutView(APIView):
                 {'success': False, 'message': 'Token invalide ou déjà expiré.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+# ─────────────────────────────────────────────────────
+#  Reset Password (mot de passe oublié)
+# ─────────────────────────────────────────────────────
+class ForgotPasswordView(APIView):
+    """
+    POST { email } → envoie un code de réinitialisation
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip()
+        if not email:
+            return Response({'success': False, 'error': 'Email requis'},
+                            status=400)
+
+        # ✅ On ne révèle pas si l'email existe ou non (sécurité)
+        user_exists = User.objects.filter(email=email).exists()
+        if not user_exists:
+            # Réponse identique pour éviter l'énumération d'emails
+            return Response({'success': True,
+                             'message': 'Si cet email existe, un code a été envoyé.'})
+
+        code = str(random.randint(100000, 999999))
+        cache.set(f'reset_code_{email}', code, timeout=600)
+
+        try:
+            send_mail(
+                subject='🔑 Réinitialisation de mot de passe — TrackPay',
+                message=f"""Bonjour,
+
+Vous avez demandé la réinitialisation de votre mot de passe TrackPay.
+
+Votre code de réinitialisation est :
+
+{code}
+
+Ce code est valable pendant 10 minutes.
+Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
+
+Cordialement,
+L'équipe TrackPay""",
+                from_email='trackpay.platform@gmail.com',
+                recipient_list=[email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=500)
+
+        return Response({'success': True,
+                         'message': 'Si cet email existe, un code a été envoyé.'})
+
+
+class VerifyResetCodeView(APIView):
+    """
+    POST { email, code } → valide le code sans changer le mot de passe
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip()
+        code  = request.data.get('code',  '').strip()
+
+        if not email or not code:
+            return Response({'success': False,
+                             'error': 'Email et code requis'}, status=400)
+
+        stored_code = cache.get(f'reset_code_{email}')
+        if stored_code and stored_code == code:
+            # On garde le code en cache pour la prochaine étape
+            # mais on marque qu'il a été vérifié
+            cache.set(f'reset_verified_{email}', True, timeout=600)
+            return Response({'success': True, 'message': 'Code valide'})
+
+        return Response({'success': False,
+                         'error': 'Code invalide ou expiré'}, status=400)
+
+
+class ResetPasswordView(APIView):
+    """
+    POST { email, code, new_password, new_password2 } → change le mot de passe
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email         = request.data.get('email', '').strip()
+        code          = request.data.get('code',  '').strip()
+        new_password  = request.data.get('new_password', '')
+        new_password2 = request.data.get('new_password2', '')
+
+        if not all([email, code, new_password, new_password2]):
+            return Response({'success': False,
+                             'error': 'Tous les champs sont requis'}, status=400)
+
+        if new_password != new_password2:
+            return Response({'success': False,
+                             'error': 'Les mots de passe ne correspondent pas'},
+                            status=400)
+
+        if len(new_password) < 8:
+            return Response({'success': False,
+                             'error': 'Le mot de passe doit contenir au moins 8 caractères'},
+                            status=400)
+
+        # Vérifier que le code est valide
+        stored_code = cache.get(f'reset_code_{email}')
+        verified    = cache.get(f'reset_verified_{email}')
+
+        if not (verified or (stored_code and stored_code == code)):
+            return Response({'success': False,
+                             'error': 'Code invalide ou expiré'}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'success': False,
+                             'error': 'Utilisateur introuvable'}, status=404)
+
+        user.set_password(new_password)
+        user.save()
+
+        # Nettoyer le cache
+        cache.delete(f'reset_code_{email}')
+        cache.delete(f'reset_verified_{email}')
+
+        return Response({'success': True,
+                         'message': 'Mot de passe réinitialisé avec succès.'})
 
 
 # ─────────────────────────────────────────────────────
