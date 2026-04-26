@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 import random
+from django.shortcuts import redirect as django_redirect
 from django.core.mail import send_mail
 from django.core.cache import cache
 from rest_framework.permissions import AllowAny
@@ -147,7 +148,147 @@ class LogoutView(APIView):
             return Response(
                 {'success': False, 'message': 'Token invalide ou déjà expiré.'},
                 status=status.HTTP_400_BAD_REQUEST,
+ 
+           )
+
+
+import requests
+from django.shortcuts import redirect as django_redirect
+
+class SSOCallbackView(APIView):
+    """
+    GET /sso/callback/?code=...
+    Reçoit le code SSO → échange → profil → login/register → deep link
+    """
+    permission_classes = [AllowAny]
+
+    SSO_TOKEN_URL    = 'https://sso-backend-6b1e.onrender.com/o/token/'
+    SSO_USERINFO_URL = 'https://sso-backend-6b1e.onrender.com/o/userinfo/'
+    CLIENT_ID        = 'P2LAbiSthHby2Y6U1QQ1FlINvXKP7iWAFUVn0KSo'
+    CLIENT_SECRET    = 'xatyaeN1gtsxulJ4x7Tl7X5j57aeUwwakWwq3d2XtqLP0RbkPot95zozwpwaej4eQzfNCr8Dfa68lygKXWLIftYREZu3dsFvrlAaFPbc449gr9X7CX6nsTWfRqk5zGSP'
+    REDIRECT_URI     = 'https://config-ap28.onrender.com/sso/callback/'
+
+    def get(self, request):
+        code  = request.GET.get('code')
+        error = request.GET.get('error')
+
+        # ── Erreur côté SSO ───────────────────────────
+        if error or not code:
+            return django_redirect(
+                f'trackpay://sso-result?success=false'
+                f'&error={error or "no_code"}'
             )
+
+        try:
+            # ── ① Échanger code → access_token SSO ───
+            token_res = requests.post(
+                self.SSO_TOKEN_URL,
+                data={
+                    'grant_type':    'authorization_code',
+                    'code':          code,
+                    'redirect_uri':  self.REDIRECT_URI,
+                    'client_id':     self.CLIENT_ID,
+                    'client_secret': self.CLIENT_SECRET,
+                },
+                timeout=10,
+            )
+            token_res.raise_for_status()
+            sso_access = token_res.json()['access_token']
+
+            # ── ② Récupérer le profil SSO ─────────────
+            user_res = requests.get(
+                self.SSO_USERINFO_URL,
+                headers={'Authorization': f'Bearer {sso_access}'},
+                timeout=10,
+            )
+            user_res.raise_for_status()
+            sso_user = user_res.json()
+
+            email = sso_user.get('email', '').strip()
+            nom   = (
+                f"{sso_user.get('given_name', '')} "
+                f"{sso_user.get('family_name', '')}".strip()
+            )
+
+            if not email:
+                raise ValueError('Email SSO introuvable')
+
+            # ── ③ Login ou Register sur TrackPay ──────
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={
+                    'nom':       nom or email.split('@')[0],
+                    'telephone': sso_user.get('phone', ''),
+                    'adresse':   '',
+                    'role':      'commercant',
+                    'is_active': True,
+                },
+            )
+
+            if created:
+                # Mot de passe aléatoire — l'user se connecte via SSO uniquement
+                sso_pass = f'SSOTrackPay_{abs(hash(email))}'
+                user.set_password(sso_pass)
+                user.save()
+
+                # Créer wallet + abonnement gratuit automatiquement
+                try:
+                    from apps.wallets.models import Wallet
+                    Wallet.objects.get_or_create(commercant=user)
+                except Exception:
+                    pass
+
+                try:
+                    from apps.abonnements.services import AbonnementService
+                    AbonnementService.souscrire(user, 'gratuit', False)
+                except Exception:
+                    pass
+
+            # ── ④ Générer JWT TrackPay ─────────────────
+            tokens    = RefreshToken.for_user(user)
+            access    = str(tokens.access_token)
+            refresh   = str(tokens)
+
+            # ── ⑤ Rediriger vers l'app Flutter ────────
+            return django_redirect(
+                f'trackpay://sso-result'
+                f'?success=true'
+                f'&access={access}'
+                f'&refresh={refresh}'
+                f'&email={email}'
+            )
+
+        except Exception as e:
+            return django_redirect(
+                f'trackpay://sso-result?success=false&error={str(e)}'
+            )
+class SSOLoginView(APIView):
+    """
+    POST { email } → connexion directe pour utilisateurs SSO vérifiés
+    Appelé uniquement après vérification du token SSO côté Flutter
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip()
+        if not email:
+            return Response({'detail': 'Email requis.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'detail': 'Utilisateur introuvable.'},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        tokens = RefreshToken.for_user(user)
+        return Response({
+            'access':  str(tokens.access_token),
+            'refresh': str(tokens),
+            'user':    UserSerializer(user).data,
+        })
+
+
+            
 # ─────────────────────────────────────────────────────
 #  Reset Password (mot de passe oublié)
 # ─────────────────────────────────────────────────────
