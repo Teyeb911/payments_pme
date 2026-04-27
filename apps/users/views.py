@@ -154,7 +154,7 @@ class LogoutView(APIView):
 
 import requests
 from django.shortcuts import redirect as django_redirect
-from django.http import HttpResponseRedirect
+
 
 class SSOCallbackView(APIView):
     permission_classes = [AllowAny]
@@ -169,10 +169,12 @@ class SSOCallbackView(APIView):
         code = request.GET.get('code')
         error = request.GET.get('error')
 
+        # ❌ Ne PAS utiliser HttpResponseRedirect ici
         if error or not code:
-            return HttpResponseRedirect(
-                f'trackpay://sso-result?success=false&error={error or "no_code"}'
-            )
+            return Response({
+                'success': False,
+                'error': error or 'no_code'
+            }, status=400)
 
         try:
             # ① Échanger code → access_token SSO
@@ -239,16 +241,19 @@ class SSOCallbackView(APIView):
             access = str(tokens.access_token)
             refresh = str(tokens)
 
-            # ✅ Redirection vers Flutter avec les tokens
-            from django.http import HttpResponseRedirect
-            return HttpResponseRedirect(
-                f'trackpay://sso-result?success=true&access={access}&refresh={refresh}&email={email}'
-            )
+            # ✅ Retourner les tokens en JSON (pas de redirection)
+            return Response({
+                'success': True,
+                'access': access,
+                'refresh': refresh,
+                'email': email
+            })
 
         except Exception as e:
-            return HttpResponseRedirect(
-                f'trackpay://sso-result?success=false&error={str(e)}'
-            )
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=500)
 class SSOLoginView(APIView):
     """
     POST { email } → connexion directe pour utilisateurs SSO vérifiés
