@@ -1,61 +1,39 @@
 """
-RSS SOC Middleware - Security Middleware for Django banking apps
-==================================================================
-Detects: SQLi, XSS, Path traversal, Brute force, Login success/failure
-Pushes events to central SOC (Loki) via HTTP.
-
-Usage:
-    1. Copy this file into your Django project (e.g. apps/core/security_middleware.py)
-    2. Add to MIDDLEWARE in settings.py:
-          'apps.core.security_middleware.SecurityMiddleware'
-    3. Set environment variables in your .env:
-          RSS_SOC_APP_NAME=your-bank-name
-          RSS_SOC_URL=http://198.199.70.48:3100
-          RSS_SOC_TOKEN=your-token
-          RSS_SOC_LOCAL_LOGS=/app/logs   (for fail2ban)
-    4. Restart Django.
-
-Author: Sidatt Belkhair - RSS Bank PFE 2025-2026
+RSS SOC Middleware v3 - Comptage brute force via PostgreSQL (multi-worker safe)
 """
 import json
-import logging
 import os
 import re
+import smtplib
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from email.mime.text import MIMEText
 from queue import Queue, Empty
 
-try:
-    import requests
-except ImportError:
-    raise ImportError("rss-soc requires 'requests'. Install with: pip install requests")
+import requests
 
 try:
-    from django.core.cache import cache
+    from django.db import connection
 except ImportError:
-    cache = None  # fallback if Django cache not configured
+    connection = None
 
-
-# =============================================================================
-# CONFIGURATION (via environment variables)
-# =============================================================================
 APP_NAME   = os.getenv('RSS_SOC_APP_NAME',   'trackpay')
 SOC_URL    = os.getenv('RSS_SOC_URL',        'http://198.199.70.48:3100')
 SOC_TOKEN  = os.getenv('RSS_SOC_TOKEN',      'b8469435e70b2bfcee9d61789b5930d200ba29fbdf19dea0c357eeb0b271ee5d')
 ENV_NAME   = os.getenv('RSS_SOC_ENV',        'production')
 LOCAL_LOGS = os.getenv('RSS_SOC_LOCAL_LOGS', '/app/logs')
 
+ALERT_EMAIL    = os.getenv('RSS_SOC_ALERT_EMAIL',    'belkhairtaleb@gmail.com')
+SMTP_HOST      = os.getenv('RSS_SOC_SMTP_HOST',      'smtp.gmail.com')
+SMTP_PORT      = int(os.getenv('RSS_SOC_SMTP_PORT',  '587'))
+SMTP_USER      = os.getenv('EMAIL_HOST_USER',        'rssbank700@gmail.com')
+SMTP_PASSWORD  = os.getenv('EMAIL_HOST_PASSWORD',    '')
 
-# =============================================================================
-# THREAT DETECTION PATTERNS
-# =============================================================================
 SQL_RE = re.compile(
     r"(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|CAST|CONVERT)\b"
     r"|('|\")(\s)*(OR|AND)(\s)*(('|\")|\d)"
-    r"|--(\s*$|\s+\w)"
-    r"|\bOR\s+1\s*=\s*1\b"
-    r"|SLEEP\s*\(|BENCHMARK\s*\()",
+    r"|--(\s*$|\s+\w)|\bOR\s+1\s*=\s*1\b|SLEEP\s*\(|BENCHMARK\s*\()",
     re.IGNORECASE,
 )
 XSS_RE = re.compile(
@@ -65,45 +43,105 @@ XSS_RE = re.compile(
 )
 TRAVERSAL_RE = re.compile(r"\.\./|\.\.\\|/etc/passwd|%2e%2e", re.IGNORECASE)
 
-
-# =============================================================================
-# ASYNC LOKI PUSHER (non-blocking background thread)
-# =============================================================================
-_log_queue: Queue = Queue(maxsize=2000)
+_log_queue = Queue(maxsize=2000)
 _worker_started = False
 _worker_lock = threading.Lock()
+_table_created = False
+_table_lock = threading.Lock()
 
 
 def _now_iso():
     return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
+def _send_email_alert(subject, body):
+    def _send():
+        try:
+            msg = MIMEText(body, 'plain', 'utf-8')
+            msg['Subject'] = f"[RSS BANK SOC] {subject}"
+            msg['From']    = SMTP_USER
+            msg['To']      = ALERT_EMAIL
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
+                s.starttls()
+                s.login(SMTP_USER, SMTP_PASSWORD)
+                s.send_message(msg)
+            print(f"[rss-soc] ✅ Email alert sent to {ALERT_EMAIL}")
+        except Exception as e:
+            print(f"[rss-soc] ❌ Email failed: {e}")
+    threading.Thread(target=_send, daemon=True).start()
+
+
+def _ensure_bf_table():
+    """Créer la table de comptage brute force (PostgreSQL)."""
+    global _table_created
+    if _table_created or connection is None:
+        return
+    with _table_lock:
+        if _table_created:
+            return
+        try:
+            with connection.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS rss_soc_login_failures (
+                        id SERIAL PRIMARY KEY,
+                        ip VARCHAR(64) NOT NULL,
+                        ts TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """)
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_rss_soc_lf_ip_ts
+                    ON rss_soc_login_failures(ip, ts)
+                """)
+            _table_created = True
+            print("[rss-soc] ✅ brute force table ready")
+        except Exception as e:
+            print(f"[rss-soc] table creation failed: {e}")
+
+
+def _record_login_failure(ip):
+    """Insère un LOGIN_FAILURE en DB + compte les échecs récents."""
+    if connection is None:
+        return 0
+    try:
+        _ensure_bf_table()
+        with connection.cursor() as cur:
+            # Insérer
+            cur.execute(
+                "INSERT INTO rss_soc_login_failures (ip) VALUES (%s)",
+                [ip]
+            )
+            # Compter les 5 dernières minutes
+            cur.execute("""
+                SELECT COUNT(*) FROM rss_soc_login_failures
+                WHERE ip = %s AND ts > NOW() - INTERVAL '5 minutes'
+            """, [ip])
+            return cur.fetchone()[0]
+    except Exception as e:
+        print(f"[rss-soc] DB count failed: {e}")
+        return 0
+
+
 def _loki_worker():
-    """Background thread: drains queue and pushes batches to Loki."""
     session = requests.Session()
     endpoint = f"{SOC_URL.rstrip('/')}/loki/api/v1/push"
     headers = {'Content-Type': 'application/json'}
     if SOC_TOKEN:
         headers['X-Scope-OrgID'] = SOC_TOKEN
-
     while True:
         batch = []
         try:
             batch.append(_log_queue.get(timeout=5))
-            for _ in range(99):  # drain up to 100 events at once
+            for _ in range(99):
                 try:
                     batch.append(_log_queue.get_nowait())
                 except Empty:
                     break
         except Empty:
             continue
-
-        # Group events by labels (Loki streams)
         streams_by_labels = {}
         for ev in batch:
             key = tuple(sorted(ev['labels'].items()))
             streams_by_labels.setdefault(key, []).append(ev)
-
         streams = []
         for key, events in streams_by_labels.items():
             labels = dict(key)
@@ -112,12 +150,10 @@ def _loki_worker():
                 for ev in events
             ]
             streams.append({'stream': labels, 'values': values})
-
         try:
             session.post(endpoint, json={'streams': streams},
                          headers=headers, timeout=5)
         except Exception:
-            # SOC unreachable? We silently drop - never crash the app
             pass
 
 
@@ -125,42 +161,51 @@ def _ensure_worker():
     global _worker_started
     with _worker_lock:
         if not _worker_started:
-            t = threading.Thread(target=_loki_worker, daemon=True, name='rss-soc-loki-pusher')
+            t = threading.Thread(target=_loki_worker, daemon=True,
+                                 name='rss-soc-loki-pusher')
             t.start()
             _worker_started = True
 
 
-def _push_event(event_type, data, job):
-    """Queue an event for async push to Loki + write locally for fail2ban."""
+def _push_event(event_type, data, job, alert=False):
     _ensure_worker()
-
-    # 1. Push to Loki (remote SOC)
     labels = {'app': APP_NAME, 'env': ENV_NAME, 'job': job}
     if event_type and job == 'django-security':
         labels['event'] = event_type
-
     try:
         _log_queue.put_nowait({
-            'ts_unix': time.time(),
-            'data': data,
-            'labels': labels,
+            'ts_unix': time.time(), 'data': data, 'labels': labels,
         })
     except Exception:
-        pass  # queue full - drop
+        pass
 
-    # 2. Write locally (for fail2ban to read)
+    # Écriture locale avec flush immédiat (important pour fail2ban !)
     try:
         os.makedirs(LOCAL_LOGS, exist_ok=True)
         fname = 'security.log' if job == 'django-security' else 'access.log'
         with open(os.path.join(LOCAL_LOGS, fname), 'a') as f:
             f.write(json.dumps(data) + '\n')
+            f.flush()
+            os.fsync(f.fileno())
     except Exception:
         pass
 
+    if alert:
+        subject = f"{event_type} détectée — {data.get('ip', '?')}"
+        body = (
+            f"Alerte de sécurité sur l'application {APP_NAME}\n\n"
+            f"Type d'événement : {event_type}\n"
+            f"IP source        : {data.get('ip', '?')}\n"
+            f"Chemin           : {data.get('path', '?')}\n"
+            f"Méthode          : {data.get('method', '?')}\n"
+            f"Timestamp        : {data.get('ts', '?')}\n"
+            f"Détails          : {json.dumps(data, indent=2)}\n\n"
+            f"Cette IP a été automatiquement bannie par Fail2ban.\n"
+            f"Dashboard SOC : http://198.199.70.48:3000"
+        )
+        _send_email_alert(subject, body)
 
-# =============================================================================
-# HELPERS
-# =============================================================================
+
 def _get_client_ip(request):
     xff = request.META.get('HTTP_X_FORWARDED_FOR')
     if xff:
@@ -186,7 +231,6 @@ def _scan_request(request):
     try:
         for k, v in request.GET.items():
             threats += _detect(f"{k}={v}")
-
         if request.content_type and 'json' in request.content_type:
             try:
                 body = request.body.decode('utf-8', errors='ignore')
@@ -199,41 +243,32 @@ def _scan_request(request):
                     threats += _detect(f"{k}={v}")
             except Exception:
                 pass
-
         threats += _detect(request.path)
     except Exception:
         pass
     return list(set(threats))
 
 
-# =============================================================================
-# MIDDLEWARE CLASS
-# =============================================================================
 class SecurityMiddleware:
-    """Add to Django MIDDLEWARE in settings.py."""
-
     def __init__(self, get_response):
         self.get_response = get_response
-        print(f"[rss-soc] SOC middleware active: app={APP_NAME}, soc={SOC_URL}")
+        print(f"[rss-soc] ACTIVE v3: app={APP_NAME}, soc={SOC_URL}, alerts={ALERT_EMAIL}")
 
     def __call__(self, request):
         start = time.time()
         ip = _get_client_ip(request)
 
-        # ─── 1. Threat detection BEFORE processing ──────────────
         threats = _scan_request(request)
         for threat in threats:
             _push_event(threat, {
                 'ts': _now_iso(), 'event': threat, 'ip': ip,
                 'method': request.method, 'path': request.path,
                 'app': APP_NAME,
-            }, job='django-security')
+            }, job='django-security', alert=True)
 
-        # ─── 2. Normal processing ───────────────────────────────
         response = self.get_response(request)
         duration_ms = int((time.time() - start) * 1000)
 
-        # ─── 3. Identify user ───────────────────────────────────
         user_email = 'anonymous'
         try:
             u = getattr(request, 'user', None)
@@ -242,7 +277,6 @@ class SecurityMiddleware:
         except Exception:
             pass
 
-        # ─── 4. Access log (every request) ──────────────────────
         _push_event('', {
             'ts': _now_iso(), 'method': request.method,
             'path': request.path, 'status': response.status_code,
@@ -250,7 +284,6 @@ class SecurityMiddleware:
             'duration_ms': duration_ms, 'app': APP_NAME,
         }, job='django-access')
 
-        # ─── 5. Login events detection ──────────────────────────
         is_login = ('login' in request.path.lower() or
                     'auth' in request.path.lower()) and request.method == 'POST'
 
@@ -264,23 +297,19 @@ class SecurityMiddleware:
                 _push_event('LOGIN_FAILURE', {
                     'ts': _now_iso(), 'event': 'LOGIN_FAILURE',
                     'ip': ip, 'status': response.status_code, 'app': APP_NAME,
+                    'path': request.path, 'method': request.method,
                 }, job='django-security')
 
-                # Brute force counter
-                if cache is not None:
-                    try:
-                        key = f'rss_soc_bf:{ip}'
-                        count = cache.get(key, 0) + 1
-                        cache.set(key, count, timeout=300)
-                        if count >= 5:
-                            _push_event('BRUTE_FORCE', {
-                                'ts': _now_iso(), 'event': 'BRUTE_FORCE',
-                                'ip': ip, 'attempts': count, 'app': APP_NAME,
-                            }, job='django-security')
-                    except Exception:
-                        pass
+                # Comptage DB (multi-worker safe)
+                count = _record_login_failure(ip)
+                print(f"[rss-soc] LOGIN_FAILURE ip={ip} count={count}")
+                if count >= 5:
+                    _push_event('BRUTE_FORCE', {
+                        'ts': _now_iso(), 'event': 'BRUTE_FORCE',
+                        'ip': ip, 'attempts': count, 'app': APP_NAME,
+                        'path': request.path, 'method': request.method,
+                    }, job='django-security', alert=True)
 
-        # ─── 6. Other 401/403 events ────────────────────────────
         elif response.status_code == 401:
             _push_event('UNAUTHORIZED', {
                 'ts': _now_iso(), 'event': 'UNAUTHORIZED',
@@ -288,3 +317,17 @@ class SecurityMiddleware:
             }, job='django-security')
 
         return response
+
+
+def get_client_ip(request):
+    return _get_client_ip(request)
+
+
+def log_security_event(event, ip, request=None, extra=None):
+    data = {'ts': _now_iso(), 'event': event, 'ip': ip, 'app': APP_NAME}
+    if request is not None:
+        data['method'] = request.method
+        data['path'] = request.path
+    if extra:
+        data.update(extra)
+    _push_event(event, data, job='django-security')
