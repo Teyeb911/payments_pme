@@ -40,7 +40,7 @@ except ImportError:
 # =============================================================================
 # CONFIGURATION (via environment variables)
 # =============================================================================
-APP_NAME   = os.getenv('RSS_SOC_APP_NAME',   'unknown-app')
+APP_NAME   = os.getenv('RSS_SOC_APP_NAME',   'trackpay')
 SOC_URL    = os.getenv('RSS_SOC_URL',        'http://198.199.70.48:3100')
 SOC_TOKEN  = os.getenv('RSS_SOC_TOKEN',      'b8469435e70b2bfcee9d61789b5930d200ba29fbdf19dea0c357eeb0b271ee5d')
 ENV_NAME   = os.getenv('RSS_SOC_ENV',        'production')
