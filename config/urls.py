@@ -16,7 +16,7 @@ urlpatterns = [
     path(V1 + 'abonnements/',  include('apps.abonnements.urls',  namespace='abonnements')),
     path(V1 + 'users/',  include('apps.users.urls',  namespace='users')),
     # dans config/urls.py (pas users/urls.py)
-path('sso/callback/', SSOCallbackView.as_view()),
+    path('sso/callback/', SSOCallbackView.as_view()),
 ]
 
 if settings.DEBUG:
