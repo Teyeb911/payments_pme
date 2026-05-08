@@ -2,6 +2,18 @@ from pathlib import Path
 from datetime import timedelta
 import sys
 from decouple import config, Csv
+# تقليل عدد العمال (workers) لخفض استهلاك الذاكرة
+import os
+
+# عدد العمال = 1 فقط للخطة المجانية
+WEB_CONCURRENCY = os.environ.get('WEB_CONCURRENCY', 1)
+
+# وقت المهلة (timeout)
+GUNICORN_TIMEOUT = 60
+
+# عدد الطلبات قبل إعادة تشغيل العامل
+GUNICORN_MAX_REQUESTS = 200
+GUNICORN_MAX_REQUESTS_JITTER = 50
 
 # ─────────────────────────────────────────────────────
 #  Paths + sys.path fix (Windows + Linux)
@@ -93,7 +105,7 @@ TEMPLATES = [
 ]
 
 # Email configuration
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'  # ou votre serveur SMTP
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
