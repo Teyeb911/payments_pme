@@ -105,7 +105,7 @@ TEMPLATES = [
 ]
 
 # Email configuration
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'  # ou votre serveur SMTP
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
