@@ -36,6 +36,11 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
         ADMIN      = 'admin',      'Administrateur'
         COMMERCANT = 'commercant', 'Commerçant'
 
+    class KycStatus(models.TextChoices):
+        PENDING  = 'pending',  'En attente'
+        VERIFIED = 'verified', 'Vérifié'
+        FAILED   = 'failed',   'Échoué'
+
     # Champs
     email      = models.EmailField(unique=True, db_index=True)
     nom        = models.CharField(max_length=100)
@@ -50,6 +55,12 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
     is_verified = models.BooleanField(default=False)
     is_active   = models.BooleanField(default=True)
     is_staff    = models.BooleanField(default=False)
+    kyc_status  = models.CharField(
+        max_length=20,
+        choices=KycStatus.choices,
+        default=KycStatus.PENDING,
+        db_index=True,
+    )
 
     USERNAME_FIELD  = 'email'
     REQUIRED_FIELDS = ['nom']

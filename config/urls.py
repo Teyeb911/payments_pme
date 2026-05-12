@@ -15,6 +15,7 @@ urlpatterns = [
     path(V1 + 'comptes/',      include('apps.comptes.urls',      namespace='comptes')),
     path(V1 + 'abonnements/',  include('apps.abonnements.urls',  namespace='abonnements')),
     path(V1 + 'users/',  include('apps.users.urls',  namespace='users')),
+    path(V1 + 'kyc/',    include('apps.kyc.urls',    namespace='kyc')),
     # dans config/urls.py (pas users/urls.py)
     path('sso/callback/', SSOCallbackView.as_view()),
 ]

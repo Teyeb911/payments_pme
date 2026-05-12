@@ -57,6 +57,7 @@ LOCAL_APPS = [
     'apps.transactions',
     'apps.comptes',
     'apps.abonnements',
+    'apps.kyc',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -220,3 +221,9 @@ CORS_ALLOW_CREDENTIALS = True
 
 # ── Windows Daesktop Flutter (pas de port fixe) ────────
 CORS_ALLOW_ALL_ORIGINS = True   # ✅ en développement seulement
+
+
+# ─────────────────────────────────────────────────────
+#  KYC
+# ─────────────────────────────────────────────────────
+KYC_AI_URL = config('KYC_AI_URL', default='https://cheikhabdelkader.pythonanywhere.com/api/analyze')
