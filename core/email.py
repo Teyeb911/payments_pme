@@ -1,42 +1,33 @@
 import os
+import smtplib
+import threading
 import logging
-
-import requests
+from email.mime.text import MIMEText
 
 logger = logging.getLogger(__name__)
 
-_API_KEY   = os.environ.get('SENDGRID_API_KEY', '')
-_FROM      = 'trackpay.platform@gmail.com'
-_FROM_NAME = 'TrackPay'
-_URL       = 'https://api.sendgrid.com/v3/mail/send'
-
 
 def send_email(to: str, subject: str, body: str) -> bool:
-    api_key = os.environ.get('SENDGRID_API_KEY', '')
-    if not api_key:
-        logger.error('SENDGRID_API_KEY not configured')
+    gmail_user = os.environ.get('EMAIL_HOST_USER', '')
+    gmail_pass = os.environ.get('EMAIL_HOST_PASSWORD', '')
+
+    if not gmail_user or not gmail_pass:
+        logger.error('EMAIL_HOST_USER or EMAIL_HOST_PASSWORD not configured')
         return False
 
-    try:
-        resp = requests.post(
-            _URL,
-            headers={
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type':  'application/json',
-            },
-            json={
-                'personalizations': [{'to': [{'email': to}]}],
-                'from':    {'email': _FROM, 'name': _FROM_NAME},
-                'subject': subject,
-                'content': [{'type': 'text/plain', 'value': body}],
-            },
-            timeout=10,
-        )
-        if resp.status_code not in (200, 202):
-            logger.error('SendGrid error %s: %s', resp.status_code, resp.text)
-            return False
-        logger.info('Email sent to %s', to)
-        return True
-    except Exception as exc:
-        logger.error('SendGrid error: %s', exc)
-        return False
+    def _send():
+        try:
+            msg = MIMEText(body, 'plain', 'utf-8')
+            msg['Subject'] = subject
+            msg['From']    = f'TrackPay <{gmail_user}>'
+            msg['To']      = to
+            with smtplib.SMTP('smtp.gmail.com', 587, timeout=30) as s:
+                s.starttls()
+                s.login(gmail_user, gmail_pass)
+                s.send_message(msg)
+            logger.info('Email sent to %s', to)
+        except Exception as exc:
+            logger.error('Gmail SMTP error: %s', exc)
+
+    threading.Thread(target=_send, daemon=True).start()
+    return True
