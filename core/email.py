@@ -3,43 +3,37 @@ import logging
 
 import requests
 from decouple import config
-from django.core.mail import send_mail as django_send_mail
-from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-_SENDGRID_URL  = 'https://api.sendgrid.com/v3/mail/send'
-_FROM_EMAIL    = 'trackpay.platform@gmail.com'
-_FROM_NAME     = 'TrackPay'
+_URL        = 'https://bmnext.pythonanywhere.com/senders/send-email'
+_SENDER     = {'name': 'TrackPay', 'logo': None, 'color': '#1E88E5'}
 
 
 def send_email(to: str, subject: str, body: str) -> bool:
-    api_key = config('SENDGRID_API_KEY', default='')
+    api_key = config('EMAIL_MICROSERVICE_KEY', default='')
 
-    if api_key and not settings.DEBUG:
-        # Production (Render) — SendGrid HTTPS API
+    if api_key and not config('DEBUG', default=False, cast=bool):
+        # Production — Email Microservice (HTTPS, non bloqué par Render)
         def _send():
             try:
                 resp = requests.post(
-                    _SENDGRID_URL,
-                    headers={
-                        'Authorization': f'Bearer {api_key}',
-                        'Content-Type':  'application/json',
-                    },
+                    _URL,
                     json={
-                        'personalizations': [{'to': [{'email': to}]}],
-                        'from':    {'email': _FROM_EMAIL, 'name': _FROM_NAME},
+                        'api_key': api_key,
+                        'to':      to,
                         'subject': subject,
-                        'content': [{'type': 'text/plain', 'value': body}],
+                        'message': body,
+                        'sender':  _SENDER,
                     },
                     timeout=15,
                 )
-                if resp.status_code not in (200, 202):
-                    logger.error('SendGrid error %s: %s', resp.status_code, resp.text)
+                if resp.status_code == 200:
+                    logger.info('Email sent to %s', to)
                 else:
-                    logger.info('Email sent via SendGrid to %s', to)
+                    logger.error('Email microservice error %s: %s', resp.status_code, resp.text)
             except Exception as exc:
-                logger.error('SendGrid error: %s', exc)
+                logger.error('Email microservice error: %s', exc)
 
         threading.Thread(target=_send, daemon=True).start()
         return True
@@ -47,7 +41,9 @@ def send_email(to: str, subject: str, body: str) -> bool:
     else:
         # Local — Django SMTP
         try:
-            django_send_mail(
+            from django.core.mail import send_mail
+            from django.conf import settings
+            send_mail(
                 subject=subject,
                 message=body,
                 from_email=settings.DEFAULT_FROM_EMAIL,
