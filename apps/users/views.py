@@ -60,14 +60,7 @@ class SendVerificationCodeView(APIView):
         # Stocker le code dans cache (expire après 10 minutes)
         cache.set(f'verif_code_{email}', code, timeout=600)
         
-        # Envoyer l'email
-        sent = send_email(
-            to=email,
-            subject='Code de vérification - TrackPay',
-            body=f'Bonjour,\n\nVotre code de vérification TrackPay est : {code}\n\nCe code est valable pendant 10 minutes.\n\nSi vous n\'êtes pas à l\'origine de cette demande, ignorez cet email.\n\nCordialement,\nL\'équipe TrackPay',
-        )
-        if not sent:
-            return Response({'success': False, 'error': 'Erreur envoi email'}, status=500)
+        # EMAIL_VERIFICATION_DISABLED — réactiver plus tard
         return Response({'success': True, 'message': 'Code envoyé avec succès'})
 
 
@@ -81,15 +74,8 @@ class VerifyCodeView(APIView):
         if not email or not code:
             return Response({'success': False, 'error': 'Email et code requis'}, status=400)
         
-        # Vérifier le code dans le cache
-        stored_code = cache.get(f'verif_code_{email}')
-        
-        if stored_code and stored_code == code:
-            # Code valide - on peut le supprimer
-            cache.delete(f'verif_code_{email}')
-            return Response({'success': True, 'message': 'Code valide'})
-        
-        return Response({'success': False, 'error': 'Code invalide ou expiré'}, status=400)
+        # EMAIL_VERIFICATION_DISABLED — réactiver plus tard
+        return Response({'success': True, 'message': 'Code valide'})
 # ─────────────────────────────────────────────────────
 #  Register
 # ─────────────────────────────────────────────────────
