@@ -106,13 +106,13 @@ TEMPLATES = [
 ]
 
 # Email configuration
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # ou votre serveur SMTP
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST          = 'smtp.gmail.com'
+EMAIL_PORT          = 587
+EMAIL_USE_TLS       = True
+EMAIL_HOST_USER     = config('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL=EMAIL_HOST_USER
+DEFAULT_FROM_EMAIL  = EMAIL_HOST_USER
 
 CACHES = {
     'default': {
@@ -133,7 +133,7 @@ DATABASES = {
         'PORT':     config('DB_PORT', default='5432'),
         'OPTIONS': {
             'client_encoding': 'UTF8',
-            'sslmode': 'require',
+            'sslmode': 'require' if not DEBUG else 'prefer',
             'connect_timeout': 10,
         },
     }
