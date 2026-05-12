@@ -48,8 +48,7 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'django_filters',
-    'django_extensions',
-]
+] + (['django_extensions'] if DEBUG else [])
 
 LOCAL_APPS = [
     'apps.users',
