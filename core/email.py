@@ -1,4 +1,3 @@
-import threading
 import logging
 
 import requests
@@ -15,28 +14,26 @@ def send_email(to: str, subject: str, body: str) -> bool:
 
     if api_key and not config('DEBUG', default=False, cast=bool):
         # Production — Email Microservice (HTTPS, non bloqué par Render)
-        def _send():
-            try:
-                resp = requests.post(
-                    _URL,
-                    json={
-                        'api_key': api_key,
-                        'to':      to,
-                        'subject': subject,
-                        'message': body,
-                        'sender':  _SENDER,
-                    },
-                    timeout=15,
-                )
-                if resp.status_code == 200:
-                    logger.info('Email sent to %s', to)
-                else:
-                    logger.error('Email microservice error %s: %s', resp.status_code, resp.text)
-            except Exception as exc:
-                logger.error('Email microservice error: %s', exc)
-
-        threading.Thread(target=_send, daemon=True).start()
-        return True
+        try:
+            resp = requests.post(
+                _URL,
+                json={
+                    'api_key': api_key,
+                    'to':      to,
+                    'subject': subject,
+                    'message': body,
+                    'sender':  _SENDER,
+                },
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                logger.info('Email sent to %s', to)
+                return True
+            logger.error('Email microservice error %s: %s', resp.status_code, resp.text)
+            return False
+        except Exception as exc:
+            logger.error('Email microservice error: %s', exc)
+            return False
 
     else:
         # Local — Django SMTP
