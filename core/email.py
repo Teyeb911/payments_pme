@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 resend.api_key = os.environ.get('RESEND_API_KEY', '')
 
-FROM_EMAIL = 'TrackPay <noreply@trackpay.ma>'
+FROM_EMAIL = 'TrackPay <onboarding@resend.dev>'
 
 
 def send_email(to: str, subject: str, body: str) -> bool:

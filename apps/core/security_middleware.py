@@ -131,7 +131,7 @@ def _send_email_alert(subject, body):
                 print('[rss-soc] RESEND_API_KEY not set')
                 return
             resend.Emails.send({
-                'from':    'TrackPay Security <noreply@trackpay.ma>',
+                'from':    'TrackPay Security <onboarding@resend.dev>',
                 'to':      [ALERT_EMAIL],
                 'subject': f'[RSS SOC] {subject}',
                 'text':    body,
