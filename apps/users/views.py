@@ -148,7 +148,7 @@ class SSOCallbackView(APIView):
     SSO_USERINFO_URL = 'https://sso-backend-6b1e.onrender.com/o/userinfo/'
     CLIENT_ID        = 'P2LAbiSthHby2Y6U1QQ1FlINvXKP7iWAFUVn0KSo'
     CLIENT_SECRET    = 'xatyaeN1gtsxulJ4x7Tl7X5j57aeUwwakWwq3d2XtqLP0RbkPot95zozwpwaej4eQzfNCr8Dfa68lygKXWLIftYREZu3dsFvrlAaFPbc449gr9X7CX6nsTWfRqk5zGSP'
-    REDIRECT_URI     = 'https://config-ap28.onrender.com/sso/callback/'
+    REDIRECT_URI     = 'https://config-ap28-1mhk.onrender.com/sso/callback/'
 
     def get(self, request):
         code = request.GET.get('code')
