@@ -34,13 +34,10 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost', cast=Csv())
 #  Applications
 # ─────────────────────────────────────────────────────
 DJANGO_APPS = [
-    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
     'django.contrib.staticfiles',
-]
+] + (['django.contrib.admin', 'django.contrib.sessions', 'django.contrib.messages'] if DEBUG else [])
 
 THIRD_PARTY_APPS = [
     'rest_framework',
@@ -65,17 +62,22 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # ─────────────────────────────────────────────────────
 #  Middleware
 # ─────────────────────────────────────────────────────
-MIDDLEWARE = [
+_base_middleware = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'apps.core.security_middleware.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+_debug_middleware = [
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+]
+
+MIDDLEWARE = _base_middleware + (_debug_middleware if DEBUG else [])
 
 
 # ─────────────────────────────────────────────────────
