@@ -7,7 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 import random
 from django.shortcuts import redirect as django_redirect
-from django.core.mail import send_mail
+from core.email import send_email
 from django.core.cache import cache
 from rest_framework.permissions import AllowAny
 from core.permissions import IsAdmin
@@ -61,29 +61,14 @@ class SendVerificationCodeView(APIView):
         cache.set(f'verif_code_{email}', code, timeout=600)
         
         # Envoyer l'email
-        try:
-            send_mail(
-                subject='🔐 Code de vérification - TrackPay',
-                message=f'''
-Bonjour,
-
-Votre code de vérification TrackPay est : {code}
-
-Ce code est valable pendant 10 minutes.
-
-Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
-
-Cordialement,
-L'équipe TrackPay
-                ''',
-                from_email='trackpay.platform@gmail.com',
-                recipient_list=[email],
-                fail_silently=False,
-            )
-            return Response({'success': True, 'message': 'Code envoyé avec succès'})
-            
-        except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=500)
+        sent = send_email(
+            to=email,
+            subject='Code de vérification - TrackPay',
+            body=f'Bonjour,\n\nVotre code de vérification TrackPay est : {code}\n\nCe code est valable pendant 10 minutes.\n\nSi vous n\'êtes pas à l\'origine de cette demande, ignorez cet email.\n\nCordialement,\nL\'équipe TrackPay',
+        )
+        if not sent:
+            return Response({'success': False, 'error': 'Erreur envoi email'}, status=500)
+        return Response({'success': True, 'message': 'Code envoyé avec succès'})
 
 
 class VerifyCodeView(APIView):
@@ -306,28 +291,13 @@ class ForgotPasswordView(APIView):
         code = str(random.randint(100000, 999999))
         cache.set(f'reset_code_{email}', code, timeout=600)
 
-        try:
-            send_mail(
-                subject='🔑 Réinitialisation de mot de passe — TrackPay',
-                message=f"""Bonjour,
-
-Vous avez demandé la réinitialisation de votre mot de passe TrackPay.
-
-Votre code de réinitialisation est :
-
-{code}
-
-Ce code est valable pendant 10 minutes.
-Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
-
-Cordialement,
-L'équipe TrackPay""",
-                from_email='trackpay.platform@gmail.com',
-                recipient_list=[email],
-                fail_silently=False,
-            )
-        except Exception as e:
-            return Response({'success': False, 'error': str(e)}, status=500)
+        sent = send_email(
+            to=email,
+            subject='Réinitialisation de mot de passe — TrackPay',
+            body=f'Bonjour,\n\nVous avez demandé la réinitialisation de votre mot de passe TrackPay.\n\nVotre code de réinitialisation est :\n\n{code}\n\nCe code est valable pendant 10 minutes.\nSi vous n\'êtes pas à l\'origine de cette demande, ignorez cet email.\n\nCordialement,\nL\'équipe TrackPay',
+        )
+        if not sent:
+            return Response({'success': False, 'error': 'Erreur envoi email'}, status=500)
 
         return Response({'success': True,
                          'message': 'Si cet email existe, un code a été envoyé.'})

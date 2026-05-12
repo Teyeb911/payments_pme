@@ -27,11 +27,9 @@ How blocking works (no Suricata needed):
 import json
 import os
 import re
-import smtplib
 import threading
 import time
 from datetime import datetime, timezone
-from email.mime.text import MIMEText
 from queue import Empty, Queue
 
 import requests
@@ -55,12 +53,8 @@ BLOCK_ATTACKS  = os.getenv('RSS_SOC_BLOCK_ATTACKS', 'true').lower() == 'true'
 BAN_DURATION   = int(os.getenv('RSS_SOC_BAN_DURATION', '3600'))  # seconds
 
 # Email — disabled by default (Grafana SOC handles alerting)
-SEND_EMAIL    = os.getenv('RSS_SOC_EMAIL_ALERTS', 'false').lower() == 'true'
-ALERT_EMAIL   = os.getenv('RSS_SOC_ALERT_EMAIL',  '')
-SMTP_HOST     = os.getenv('RSS_SOC_SMTP_HOST',    'smtp.gmail.com')
-SMTP_PORT     = int(os.getenv('RSS_SOC_SMTP_PORT','587'))
-SMTP_USER     = os.getenv('EMAIL_HOST_USER',      '')
-SMTP_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD',  '')
+SEND_EMAIL  = os.getenv('RSS_SOC_EMAIL_ALERTS', 'false').lower() == 'true'
+ALERT_EMAIL = os.getenv('RSS_SOC_ALERT_EMAIL',  '')
 
 # ── Threat detection patterns ─────────────────────────────────────────────────
 SQL_RE = re.compile(
@@ -126,21 +120,24 @@ def _block_429(ip):
 
 # ── Optional email alert ──────────────────────────────────────────────────────
 def _send_email_alert(subject, body):
-    if not SEND_EMAIL or not SMTP_USER or not SMTP_PASSWORD or not ALERT_EMAIL:
+    if not SEND_EMAIL or not ALERT_EMAIL:
         return
 
     def _send():
         try:
-            msg = MIMEText(body, 'plain', 'utf-8')
-            msg['Subject'] = f"[RSS SOC] {subject}"
-            msg['From']    = SMTP_USER
-            msg['To']      = ALERT_EMAIL
-            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
-                s.starttls()
-                s.login(SMTP_USER, SMTP_PASSWORD)
-                s.send_message(msg)
+            import resend
+            resend.api_key = os.getenv('RESEND_API_KEY', '')
+            if not resend.api_key:
+                print('[rss-soc] RESEND_API_KEY not set')
+                return
+            resend.Emails.send({
+                'from':    'TrackPay Security <noreply@trackpay.ma>',
+                'to':      [ALERT_EMAIL],
+                'subject': f'[RSS SOC] {subject}',
+                'text':    body,
+            })
         except Exception as e:
-            print(f"[rss-soc] email failed: {e}")
+            print(f'[rss-soc] email failed: {e}')
 
     threading.Thread(target=_send, daemon=True).start()
 
