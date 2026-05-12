@@ -37,8 +37,9 @@ DJANGO_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
+    'django.contrib.messages',
     'django.contrib.staticfiles',
-] + (['django.contrib.admin', 'django.contrib.messages'] if DEBUG else [])
+] + (['django.contrib.admin'] if DEBUG else [])
 
 THIRD_PARTY_APPS = [
     'rest_framework',
@@ -70,6 +71,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
