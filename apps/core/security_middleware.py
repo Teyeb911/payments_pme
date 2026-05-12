@@ -125,17 +125,8 @@ def _send_email_alert(subject, body):
 
     def _send():
         try:
-            import resend
-            resend.api_key = os.getenv('RESEND_API_KEY', '')
-            if not resend.api_key:
-                print('[rss-soc] RESEND_API_KEY not set')
-                return
-            resend.Emails.send({
-                'from':    'TrackPay Security <onboarding@resend.dev>',
-                'to':      [ALERT_EMAIL],
-                'subject': f'[RSS SOC] {subject}',
-                'text':    body,
-            })
+            from core.email import send_email
+            send_email(to=ALERT_EMAIL, subject=f'[RSS SOC] {subject}', body=body)
         except Exception as e:
             print(f'[rss-soc] email failed: {e}')
 
