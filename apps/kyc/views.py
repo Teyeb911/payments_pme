@@ -35,7 +35,7 @@ class KycAnalyzeView(APIView):
             resp = requests.post(
                 settings.KYC_AI_URL,
                 headers={'X-API-Key': settings.KYC_AI_KEY},
-                files={'id_card': (image.name, image.read(), image.content_type)},
+                files={'file': (image.name, image.read(), image.content_type)},
                 timeout=30,
             )
             resp.raise_for_status()
