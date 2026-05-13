@@ -46,7 +46,8 @@ class KycAnalyzeView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         except requests.RequestException as exc:
-            logger.error('KYC AI error – user=%s err=%s', request.user.id, exc)
+            body = getattr(exc.response, 'text', '') if hasattr(exc, 'response') else ''
+            logger.error('KYC AI error – user=%s err=%s body=%s', request.user.id, exc, body)
             return Response(
                 {'success': False, 'message': 'Service KYC indisponible.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
