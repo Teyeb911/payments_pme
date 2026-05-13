@@ -19,7 +19,7 @@ class KycCompleteSerializer(serializers.Serializer):
     user_id       = serializers.CharField()
     card_data     = CardDataSerializer()
     face_verified = serializers.BooleanField()
-    confidence    = serializers.FloatField(min_value=0.0, max_value=1.0)
+    confidence    = serializers.FloatField(min_value=0.0, max_value=100.0)
 
 
 class KycRecordSerializer(serializers.ModelSerializer):
