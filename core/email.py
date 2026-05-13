@@ -10,21 +10,7 @@ _SENDER = {'name': 'TrackPay', 'color': '#1E88E5'}
 
 
 def send_email(to: str, subject: str, body: str) -> bool:
-    is_debug = config('DEBUG', default=False, cast=bool)
-
-    if is_debug:
-        from django.core.mail import send_mail
-        from django.conf import settings
-        try:
-            send_mail(subject=subject, message=body,
-                      from_email=settings.DEFAULT_FROM_EMAIL,
-                      recipient_list=[to], fail_silently=False)
-            return True
-        except Exception as exc:
-            logger.error('Console email error: %s', exc)
-            return False
-
-    # Production — Email Microservice
+    # Email Microservice (local + production)
     api_key    = config('EMAIL_MICROSERVICE_KEY', default='')
     gmail_user = config('EMAIL_HOST_USER', default='')
     gmail_pass = config('EMAIL_HOST_PASSWORD', default='')
