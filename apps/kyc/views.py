@@ -34,6 +34,7 @@ class KycAnalyzeView(APIView):
         try:
             resp = requests.post(
                 settings.KYC_AI_URL,
+                headers={'X-API-Key': settings.KYC_AI_KEY},
                 files={'id_card': (image.name, image.read(), image.content_type)},
                 timeout=30,
             )
@@ -51,12 +52,11 @@ class KycAnalyzeView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        raw = resp.json()
+        raw  = resp.json()
         card = raw.get('data', {})
-        images = raw.get('images', {})
 
         result = {
-            'nni':            card.get('nni', ''),
+            'nni':            card.get('identifier', ''),
             'nom_fr':         card.get('last_name_fl', ''),
             'nom_ar':         card.get('last_name_ll', ''),
             'prenom_fr':      card.get('first_name_fl', ''),
@@ -64,8 +64,8 @@ class KycAnalyzeView(APIView):
             'date_naissance': card.get('birth_date', ''),
             'lieu_naissance': card.get('birth_place_fl', ''),
             'sexe':           card.get('gender', ''),
-            'nationalite':    card.get('nationality_iso', ''),
-            'face_image':     images.get('base64', ''),
+            'nationalite':    card.get('nationality', ''),
+            'face_image':     card.get('face_image', ''),
         }
 
         return Response(success_response(data=result))

@@ -223,4 +223,5 @@ CORS_ALLOW_ALL_ORIGINS = True   # ✅ en développement seulement
 # ─────────────────────────────────────────────────────
 #  KYC
 # ─────────────────────────────────────────────────────
-KYC_AI_URL = config('KYC_AI_URL', default='https://cheikhabdelkader.pythonanywhere.com/api/analyze')
+KYC_AI_URL = config('KYC_AI_URL', default='https://ocr-id-verifier-production.up.railway.app/api/v1/extract')
+KYC_AI_KEY = config('KYC_AI_KEY', default='')
