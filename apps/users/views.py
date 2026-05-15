@@ -140,8 +140,8 @@ class SSOCallbackView(APIView):
 
     SSO_TOKEN_URL    = 'https://sso-backend-6b1e.onrender.com/o/token/'
     SSO_USERINFO_URL = 'https://sso-backend-6b1e.onrender.com/o/userinfo/'
-    CLIENT_ID        = config('SSO_CLIENT_ID',     default='P2LAbiSthHby2Y6U1QQ1FlINvXKP7iWAFUVn0KSo')
-    CLIENT_SECRET    = config('SSO_CLIENT_SECRET', default='xatyaeN1gtsxulJ4x7Tl7X5j57aeUwwakWwq3d2XtqLP0RbkPot95zozwpwaej4eQzfNCr8Dfa68lygKXWLIftYREZu3dsFvrlAaFPbc449gr9X7CX6nsTWfRqk5zGSP')
+    CLIENT_ID        = config('SSO_CLIENT_ID',     default='w25QcB0B9UAQ7t8kXwBqMPf7lR7vMshQtKb8CVhk')
+    CLIENT_SECRET    = config('SSO_CLIENT_SECRET', default='')
     REDIRECT_URI     = config('SSO_REDIRECT_URI',  default='https://config-ap28-1mhk.onrender.com/sso/callback/')
 
     def get(self, request):
@@ -164,7 +164,7 @@ class SSOCallbackView(APIView):
                     'code': code,
                     'redirect_uri': self.REDIRECT_URI,
                     'client_id': self.CLIENT_ID,
-                    'client_secret': self.CLIENT_SECRET,
+                    **({'client_secret': self.CLIENT_SECRET} if self.CLIENT_SECRET else {}),
                 },
                 timeout=10,
             )
