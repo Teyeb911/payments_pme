@@ -145,10 +145,10 @@ class SSOCallbackView(APIView):
     REDIRECT_URI     = config('SSO_REDIRECT_URI',  default='https://config-ap28-1mhk.onrender.com/sso/callback/')
 
     def get(self, request):
-        code = request.GET.get('code')
-        error = request.GET.get('error')
+        code          = request.GET.get('code')
+        error         = request.GET.get('error')
+        code_verifier = request.GET.get('code_verifier', '')
 
-        # ❌ Ne PAS utiliser HttpResponseRedirect ici
         if error or not code:
             return Response({
                 'success': False,
@@ -157,15 +157,20 @@ class SSOCallbackView(APIView):
 
         try:
             # ① Échanger code → access_token SSO
+            token_data = {
+                'grant_type':   'authorization_code',
+                'code':         code,
+                'redirect_uri': self.REDIRECT_URI,
+                'client_id':    self.CLIENT_ID,
+            }
+            if self.CLIENT_SECRET:
+                token_data['client_secret'] = self.CLIENT_SECRET
+            if code_verifier:
+                token_data['code_verifier'] = code_verifier
+
             token_res = requests.post(
                 self.SSO_TOKEN_URL,
-                data={
-                    'grant_type': 'authorization_code',
-                    'code': code,
-                    'redirect_uri': self.REDIRECT_URI,
-                    'client_id': self.CLIENT_ID,
-                    **({'client_secret': self.CLIENT_SECRET} if self.CLIENT_SECRET else {}),
-                },
+                data=token_data,
                 timeout=10,
             )
             token_res.raise_for_status()
