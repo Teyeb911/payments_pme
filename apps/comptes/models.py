@@ -34,3 +34,43 @@ class CompteExterne(TimeStampedModel):
 
     def __str__(self) -> str:
         return f'{self.nom_banque} — {self.numero_compte} ({self.commercant.email})'
+
+
+class TransactionExterne(TimeStampedModel):
+
+    class TypeTransaction(models.TextChoices):
+        CREDIT  = 'credit',  'Crédit'
+        DEBIT   = 'debit',   'Débit'
+
+    class Statut(models.TextChoices):
+        COMPLETED = 'completed', 'Complétée'
+        PENDING   = 'pending',   'En attente'
+        FAILED    = 'failed',    'Échouée'
+
+    compte_externe = models.ForeignKey(
+        CompteExterne,
+        on_delete=models.CASCADE,
+        related_name='transactions_externes',
+    )
+    montant = models.DecimalField(max_digits=12, decimal_places=2)
+    type_transaction = models.CharField(
+        max_length=10,
+        choices=TypeTransaction.choices,
+    )
+    description = models.CharField(max_length=255)
+    date = models.DateTimeField()
+    statut = models.CharField(
+        max_length=20,
+        choices=Statut.choices,
+        default=Statut.COMPLETED,
+        db_index=True,
+    )
+    reference = models.CharField(max_length=100, unique=True, db_index=True)
+
+    class Meta:
+        db_table = 'transactions_externes'
+        verbose_name = 'Transaction Externe'
+        ordering = ['-date']
+
+    def __str__(self) -> str:
+        return f'[{self.type_transaction.upper()}] {self.reference} — {self.montant} DZD ({self.statut})'

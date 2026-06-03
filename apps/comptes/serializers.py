@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from .models import CompteExterne
+
+from core.utils import generate_reference
+from .models import CompteExterne, TransactionExterne
 
 
 class CompteExterneSerializer(serializers.ModelSerializer):
@@ -29,3 +31,28 @@ class PaiementEntrantSerializer(serializers.Serializer):
     date       = serializers.DateTimeField()
     expediteur = serializers.CharField()
     description = serializers.CharField(required=False)
+
+
+class TransactionExterneSerializer(serializers.ModelSerializer):
+    compte_nom_banque = serializers.CharField(source='compte_externe.nom_banque', read_only=True)
+
+    class Meta:
+        model = TransactionExterne
+        fields = [
+            'id', 'compte_externe', 'compte_nom_banque', 'montant',
+            'type_transaction', 'description', 'date', 'statut',
+            'reference', 'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class TransactionExterneCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TransactionExterne
+        fields = ['montant', 'type_transaction', 'description', 'date']
+
+    def create(self, validated_data):
+        compte_externe = self.context['compte_externe']
+        validated_data['reference'] = f"EXT-{generate_reference()}"
+        validated_data['compte_externe'] = compte_externe
+        return super().create(validated_data)
