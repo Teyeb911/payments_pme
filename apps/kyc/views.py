@@ -17,6 +17,41 @@ from .serializers import KycCompleteSerializer
 logger = logging.getLogger('kyc')
 
 
+def _call_primary_ocr(url, api_key, filename, image_bytes, mime_type, user_id, log):
+    try:
+        resp = requests.post(
+            url,
+            headers={'X-API-Key': api_key},
+            files={'file': (filename, image_bytes, mime_type)},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except requests.Timeout:
+        log.error('KYC primary timeout – user=%s', user_id)
+    except requests.RequestException as exc:
+        body = getattr(exc.response, 'text', '') if hasattr(exc, 'response') else ''
+        log.error('KYC primary error – user=%s err=%s body=%s', user_id, exc, body)
+    return None
+
+
+def _call_fallback_ocr(url, filename, image_bytes, mime_type, user_id, log):
+    try:
+        resp = requests.post(
+            url,
+            files={'image': (filename, image_bytes, mime_type)},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except requests.Timeout:
+        log.error('KYC fallback timeout – user=%s', user_id)
+    except requests.RequestException as exc:
+        body = getattr(exc.response, 'text', '') if hasattr(exc, 'response') else ''
+        log.error('KYC fallback error – user=%s err=%s body=%s', user_id, exc, body)
+    return None
+
+
 class KycAnalyzeView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes     = [MultiPartParser]
@@ -31,41 +66,39 @@ class KycAnalyzeView(APIView):
 
         logger.info('KYC analyze – user=%s ip=%s', request.user.id, request.META.get('REMOTE_ADDR'))
 
-        try:
-            resp = requests.post(
-                settings.KYC_AI_URL,
-                headers={'X-API-Key': settings.KYC_AI_KEY},
-                files={'file': (image.name, image.read(), image.content_type if image.content_type in ('image/jpeg', 'image/png') else 'image/jpeg')},
-                timeout=30,
-            )
-            resp.raise_for_status()
-        except requests.Timeout:
-            logger.error('KYC AI timeout – user=%s', request.user.id)
+        mime_type   = image.content_type if image.content_type in ('image/jpeg', 'image/png') else 'image/jpeg'
+        image_bytes = image.read()
+
+        # ── Service primaire ───────────────────────────────────────────────
+        raw = _call_primary_ocr(settings.KYC_AI_URL, settings.KYC_AI_KEY,
+                                 image.name, image_bytes, mime_type,
+                                 request.user.id, logger)
+
+        # ── Fallback si le service primaire a échoué ───────────────────────
+        if raw is None:
+            logger.info('KYC analyze – bascule sur le service de secours – user=%s', request.user.id)
+            raw = _call_fallback_ocr(settings.KYC_AI_FALLBACK_URL,
+                                     image.name, image_bytes, mime_type,
+                                     request.user.id, logger)
+
+        if raw is None:
             return Response(
-                {'success': False, 'message': 'Service KYC non disponible (timeout).'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-        except requests.RequestException as exc:
-            body = getattr(exc.response, 'text', '') if hasattr(exc, 'response') else ''
-            logger.error('KYC AI error – user=%s err=%s body=%s', request.user.id, exc, body)
-            return Response(
-                {'success': False, 'message': 'Service KYC indisponible.'},
+                {'success': False, 'message': 'Tous les services KYC sont indisponibles.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        raw  = resp.json()
-        card = raw.get('data', {})
+        card = raw.get('data', raw)
 
         result = {
-            'nni':            card.get('identifier', ''),
-            'nom_fr':         card.get('last_name_fl', ''),
-            'nom_ar':         card.get('last_name_ll', ''),
-            'prenom_fr':      card.get('first_name_fl', ''),
-            'prenom_ar':      card.get('first_name_ll', ''),
-            'date_naissance': card.get('birth_date', ''),
-            'lieu_naissance': card.get('birth_place_fl', ''),
-            'sexe':           card.get('gender', ''),
-            'nationalite':    card.get('nationality', ''),
+            'nni':            card.get('identifier', card.get('nni', '')),
+            'nom_fr':         card.get('last_name_fl', card.get('nom_fr', '')),
+            'nom_ar':         card.get('last_name_ll', card.get('nom_ar', '')),
+            'prenom_fr':      card.get('first_name_fl', card.get('prenom_fr', '')),
+            'prenom_ar':      card.get('first_name_ll', card.get('prenom_ar', '')),
+            'date_naissance': card.get('birth_date', card.get('date_naissance', '')),
+            'lieu_naissance': card.get('birth_place_fl', card.get('lieu_naissance', '')),
+            'sexe':           card.get('gender', card.get('sexe', '')),
+            'nationalite':    card.get('nationality', card.get('nationalite', '')),
             'face_image':     card.get('face_image', ''),
         }
 
