@@ -22,8 +22,8 @@ def _call_primary_ocr(url, api_key, filename, image_bytes, mime_type, user_id, l
         resp = requests.post(
             url,
             headers={'X-API-Key': api_key},
-            files={'file': (filename, image_bytes, mime_type)},
-            timeout=30,
+            files={'id_card': (filename, image_bytes, mime_type)},
+            timeout=60,
         )
         resp.raise_for_status()
         return resp.json()
@@ -39,8 +39,8 @@ def _call_fallback_ocr(url, filename, image_bytes, mime_type, user_id, log):
     try:
         resp = requests.post(
             url,
-            files={'image': (filename, image_bytes, mime_type)},
-            timeout=30,
+            files={'id_card': (filename, image_bytes, mime_type)},
+            timeout=60,
         )
         resp.raise_for_status()
         return resp.json()
@@ -98,8 +98,8 @@ class KycAnalyzeView(APIView):
             'date_naissance': card.get('birth_date', card.get('date_naissance', '')),
             'lieu_naissance': card.get('birth_place_fl', card.get('lieu_naissance', '')),
             'sexe':           card.get('gender', card.get('sexe', '')),
-            'nationalite':    card.get('nationality', card.get('nationalite', '')),
-            'face_image':     card.get('face_image', ''),
+            'nationalite':    card.get('nationality', card.get('nationality_iso', card.get('nationalite', ''))),
+            'face_image':     card.get('face_image', card.get('images', {}).get('base64', '')),
         }
 
         return Response(success_response(data=result))
