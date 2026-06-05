@@ -106,6 +106,65 @@ class AdminUserSerializer(serializers.ModelSerializer):
         model  = User
         fields = [
             'id', 'email', 'nom', 'telephone', 'adresse',
-            'role', 'is_verified', 'is_active', 'created_at',
+            'role', 'kyc_status', 'is_verified', 'is_active', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
+
+
+# ─────────────────────────────────────────────────────
+#  Admin — détail complet d'un commerçant
+# ─────────────────────────────────────────────────────
+class CommercantDetailSerializer(serializers.ModelSerializer):
+    wallet       = serializers.SerializerMethodField()
+    abonnement   = serializers.SerializerMethodField()
+    kyc          = serializers.SerializerMethodField()
+    nb_comptes   = serializers.SerializerMethodField()
+    nb_transactions = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = User
+        fields = [
+            'id', 'email', 'nom', 'telephone', 'adresse',
+            'role', 'kyc_status', 'is_verified', 'is_active', 'created_at',
+            'wallet', 'abonnement', 'kyc', 'nb_comptes', 'nb_transactions',
+        ]
+
+    def get_wallet(self, obj):
+        try:
+            w = obj.wallet
+            return {'balance': str(w.balance), 'currency': w.currency, 'is_active': w.is_active}
+        except Exception:
+            return None
+
+    def get_abonnement(self, obj):
+        try:
+            a = obj.abonnement
+            return {
+                'plan': a.plan.type,
+                'statut': a.statut,
+                'date_expiration': str(a.date_expiration),
+                'auto_renouvellement': a.auto_renouvellement,
+            }
+        except Exception:
+            return None
+
+    def get_kyc(self, obj):
+        record = obj.kyc_records.order_by('-created_at').first()
+        if not record:
+            return None
+        return {
+            'kyc_id': record.kyc_id,
+            'nni': record.nni,
+            'nom_fr': record.nom_fr,
+            'prenom_fr': record.prenom_fr,
+            'status': record.status,
+            'face_verified': record.face_verified,
+            'confidence': record.confidence,
+            'created_at': record.created_at.isoformat(),
+        }
+
+    def get_nb_comptes(self, obj):
+        return obj.comptes_externes.count()
+
+    def get_nb_transactions(self, obj):
+        return obj.transactions.count()

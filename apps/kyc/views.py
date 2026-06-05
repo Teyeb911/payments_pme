@@ -146,6 +146,27 @@ class KycCompleteView(APIView):
         )
 
 
+class KycValiderView(APIView):
+    """POST — validation manuelle du KYC par un admin."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, user_id):
+        if not request.user.is_admin:
+            return Response(
+                {'success': False, 'message': 'Accès refusé.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        target = get_object_or_404(User, id=user_id)
+        record = KycRecord.objects.filter(user=target).order_by('-created_at').first()
+        if record:
+            record.status = KycRecord.Status.VERIFIED
+            record.save(update_fields=['status'])
+        target.kyc_status = User.KycStatus.VERIFIED
+        target.save(update_fields=['kyc_status'])
+        logger.info('KYC manual validation – admin=%s target=%s', request.user.id, user_id)
+        return Response(success_response(message=f'KYC validé pour {target.email}.'))
+
+
 class KycStatusView(APIView):
     permission_classes = [IsAuthenticated]
 

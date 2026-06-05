@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 import random
-from django.shortcuts import redirect as django_redirect
+from django.shortcuts import redirect as django_redirect, get_object_or_404
 from core.email import send_email, send_email_async
 from django.core.cache import cache
 from rest_framework.permissions import AllowAny
@@ -427,3 +427,32 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset           = User.objects.filter(role='commercant')
     serializer_class   = AdminUserSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
+
+
+class CommercantDetailCompletView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request, pk):
+        from .serializers import CommercantDetailSerializer
+        user = get_object_or_404(User, pk=pk, role=User.Role.COMMERCANT)
+        return Response(success_response(data=CommercantDetailSerializer(user).data))
+
+
+class CommercantSuspendreView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request, pk):
+        user = get_object_or_404(User, pk=pk, role=User.Role.COMMERCANT)
+        user.is_active = False
+        user.save(update_fields=['is_active'])
+        return Response(success_response(message=f'Commerçant {user.email} suspendu.'))
+
+
+class CommercantActiverView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request, pk):
+        user = get_object_or_404(User, pk=pk, role=User.Role.COMMERCANT)
+        user.is_active = True
+        user.save(update_fields=['is_active'])
+        return Response(success_response(message=f'Commerçant {user.email} activé.'))
