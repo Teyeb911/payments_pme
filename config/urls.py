@@ -13,6 +13,7 @@ urlpatterns = [
     path(V1 + 'wallets/',      include('apps.wallets.urls',      namespace='wallets')),
     path(V1 + 'transactions/', include('apps.transactions.urls', namespace='transactions')),
     path(V1 + 'comptes/',      include('apps.comptes.urls',      namespace='comptes')),
+    path(V1 + 'integrations/', include('apps.integrations.urls', namespace='integrations')),
     path(V1 + 'abonnements/',  include('apps.abonnements.urls',  namespace='abonnements')),
     path(V1 + 'users/',  include('apps.users.urls',  namespace='users')),
     path(V1 + 'kyc/',    include('apps.kyc.urls',    namespace='kyc')),

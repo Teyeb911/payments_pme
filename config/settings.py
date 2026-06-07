@@ -55,6 +55,7 @@ LOCAL_APPS = [
     'apps.wallets',
     'apps.transactions',
     'apps.comptes',
+    'apps.integrations',
     'apps.abonnements',
     'apps.kyc',
 ]
@@ -205,6 +206,12 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM':            'user_id',
     'TOKEN_OBTAIN_SERIALIZER':  'apps.users.serializers.CustomTokenObtainPairSerializer',
 }
+
+
+# ─────────────────────────────────────────────────────
+#  Bank Sync Mode
+# ─────────────────────────────────────────────────────
+BANK_SYNC_MODE = config('BANK_SYNC_MODE', default='mock')  # 'mock' ou 'real'
 
 
 # ─────────────────────────────────────────────────────
