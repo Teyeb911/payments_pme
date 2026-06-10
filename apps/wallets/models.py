@@ -12,7 +12,7 @@ class Wallet(TimeStampedModel):
         limit_choices_to={'role': 'commercant'},
     )
     balance   = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    currency  = models.CharField(max_length=5, default='DZD')
+    currency  = models.CharField(max_length=5, default='MRU')
     is_active = models.BooleanField(default=True)
 
     class Meta:

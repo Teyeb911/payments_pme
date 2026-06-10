@@ -73,4 +73,4 @@ class TransactionExterne(TimeStampedModel):
         ordering = ['-date']
 
     def __str__(self) -> str:
-        return f'[{self.type_transaction.upper()}] {self.reference} — {self.montant} DZD ({self.statut})'
+        return f'[{self.type_transaction.upper()}] {self.reference} — {self.montant} MRU ({self.statut})'

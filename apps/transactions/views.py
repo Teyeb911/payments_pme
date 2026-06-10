@@ -79,7 +79,7 @@ class TransfertInterneView(APIView):
         return Response(
             success_response(
                 data=TransactionSerializer(transaction).data,
-                message='Transfert effectué avec succès. Frais : 0 DZD',
+                message='Transfert effectué avec succès. Frais : 0 MRU',
             ),
             status=status.HTTP_201_CREATED,
         )

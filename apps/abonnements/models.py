@@ -23,7 +23,7 @@ class Plan(models.Model):
         verbose_name = 'Plan'
 
     def __str__(self) -> str:
-        return f'{self.type} — {self.prix_mensuel} DZD/mois'
+        return f'{self.type} — {self.prix_mensuel} MRU/mois'
 
 
 class Abonnement(TimeStampedModel):
