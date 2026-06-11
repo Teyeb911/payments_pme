@@ -28,7 +28,9 @@ class HistoriqueView(generics.ListAPIView):
     ordering           = ['-created_at']
 
     def get_queryset(self):
-        wallet = get_object_or_404(Wallet, commercant=self.request.user)
+        wallet = Wallet.objects.filter(commercant=self.request.user).first()
+        if not wallet:
+            return Transaction.objects.none()
         return Transaction.objects.filter(
             Q(wallet_expediteur=wallet) | Q(wallet_recepteur=wallet)
         ).select_related(
@@ -43,7 +45,9 @@ class TransactionDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated, IsCommerçant]
 
     def get_queryset(self):
-        wallet = get_object_or_404(Wallet, commercant=self.request.user)
+        wallet = Wallet.objects.filter(commercant=self.request.user).first()
+        if not wallet:
+            return Transaction.objects.none()
         return Transaction.objects.filter(
             Q(wallet_expediteur=wallet) | Q(wallet_recepteur=wallet)
         )
@@ -108,7 +112,15 @@ class DashboardView(APIView):
     permission_classes = [IsAuthenticated, IsCommerçant]
 
     def get(self, request):
-        wallet = get_object_or_404(Wallet, commercant=request.user)
+        wallet = Wallet.objects.filter(commercant=request.user).first()
+        if not wallet:
+            return Response(success_response(data=DashboardSerializer({
+                'wallet_balance': 0,
+                'total_envoye': 0,
+                'total_recu': 0,
+                'nb_transactions': 0,
+                'dernieres_transactions': [],
+            }).data))
 
         qs_emises = Transaction.objects.filter(
             wallet_expediteur=wallet,
