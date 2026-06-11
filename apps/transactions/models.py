@@ -20,18 +20,18 @@ class Transaction(TimeStampedModel):
     # ── Relations ────────────────────────────────────
     commercant = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name='transactions',
         limit_choices_to={'role': 'commercant'},
     )
     wallet_expediteur = models.ForeignKey(
         'wallets.Wallet',
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name='transactions_emises',
     )
     wallet_recepteur = models.ForeignKey(
         'wallets.Wallet',
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name='transactions_recues',
     )
     compte_externe = models.ForeignKey(
