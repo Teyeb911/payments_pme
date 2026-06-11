@@ -8,6 +8,7 @@ from .views import (
     SendVerificationCodeView, VerifyCodeView, ForgotPasswordView,
     VerifyResetCodeView, ResetPasswordView, SSOLoginView,
     CommercantDetailCompletView, CommercantSuspendreView, CommercantActiverView,
+    CommercantInvaliderView,
 )
 
 app_name = 'auth'
@@ -34,4 +35,5 @@ urlpatterns = [
     path('users/<int:pk>/detail/',          CommercantDetailCompletView.as_view(), name='users-detail-complet'),
     path('users/<int:pk>/suspendre/',       CommercantSuspendreView.as_view(),  name='users-suspendre'),
     path('users/<int:pk>/activer/',         CommercantActiverView.as_view(),    name='users-activer'),
+    path('users/<int:pk>/invalider/',       CommercantInvaliderView.as_view(),  name='users-invalider'),
 ]

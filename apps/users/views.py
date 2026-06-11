@@ -456,3 +456,34 @@ class CommercantActiverView(APIView):
         user.is_active = True
         user.save(update_fields=['is_active'])
         return Response(success_response(message=f'Commerçant {user.email} activé.'))
+
+
+class CommercantInvaliderView(APIView):
+    """
+    POST — invalide définitivement le compte d'un commerçant :
+      1. désactive le compte (is_active = False)
+      2. blackliste tous ses tokens JWT → déconnexion forcée immédiate
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request, pk):
+        from rest_framework_simplejwt.token_blacklist.models import (
+            OutstandingToken, BlacklistedToken
+        )
+        user = get_object_or_404(User, pk=pk, role=User.Role.COMMERCANT)
+
+        if not user.is_active:
+            return Response(
+                {'success': False, 'message': 'Ce compte est déjà invalide.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.is_active = False
+        user.save(update_fields=['is_active'])
+
+        for token in OutstandingToken.objects.filter(user=user):
+            BlacklistedToken.objects.get_or_create(token=token)
+
+        return Response(success_response(
+            message=f'Compte de {user.email} invalidé et déconnecté.'
+        ))
