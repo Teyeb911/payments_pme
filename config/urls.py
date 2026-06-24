@@ -8,6 +8,7 @@ V1 = 'api/v1/'
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', include('payments.urls')),
 
     path(V1 + 'auth/',         include('apps.users.urls',        namespace='auth')),
     path(V1 + 'wallets/',      include('apps.wallets.urls',      namespace='wallets')),

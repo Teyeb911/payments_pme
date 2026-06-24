@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Paiement TrackPay</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 560px;
+            margin: 48px auto;
+            padding: 0 16px;
+            color: #222;
+        }
+        label, input, button {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        input {
+            margin: 8px 0 16px;
+            padding: 10px;
+        }
+        button {
+            padding: 12px;
+            cursor: pointer;
+        }
+        .error {
+            color: #b00020;
+        }
+        .success {
+            color: #087c3f;
+        }
+        #step-2 {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Paiement TrackPay</h1>
+    <p><strong>Montant :</strong> {{ amount }} MRU</p>
+    <p><strong>Description :</strong> {{ description }}</p>
+    <p><strong>Partenaire :</strong> {{ partner_name }}</p>
+
+    <div id="step-1">
+        <label for="email">Email TrackPay</label>
+        <input id="email" type="email" autocomplete="email" required>
+        <button type="button" id="send-otp">Envoyer le code</button>
+    </div>
+
+    <div id="step-2">
+        <p>Code envoyé à votre email</p>
+        <label for="otp">Code OTP</label>
+        <input id="otp" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required>
+        <button type="button" id="confirm-payment">Confirmer le paiement</button>
+    </div>
+
+    <p id="message"></p>
+
+    <script>
+        const paymentId = "{{ payment_id }}";
+        const emailInput = document.getElementById("email");
+        const otpInput = document.getElementById("otp");
+        const message = document.getElementById("message");
+        const step1 = document.getElementById("step-1");
+        const step2 = document.getElementById("step-2");
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = type;
+        }
+
+        async function postJson(url, payload) {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw data;
+            }
+            return data;
+        }
+
+        document.getElementById("send-otp").addEventListener("click", async () => {
+            try {
+                await postJson(`/pay/${paymentId}/send-otp/`, {email: emailInput.value});
+                step1.style.display = "none";
+                step2.style.display = "block";
+                showMessage("", "");
+            } catch (error) {
+                showMessage(error.error || "Une erreur est survenue.", "error");
+            }
+        });
+
+        document.getElementById("confirm-payment").addEventListener("click", async () => {
+            try {
+                const data = await postJson(`/pay/${paymentId}/confirm/`, {
+                    email: emailInput.value,
+                    otp: otpInput.value
+                });
+                showMessage(data.message || "Paiement effectué avec succès.", "success");
+            } catch (error) {
+                showMessage(error.error || "Une erreur est survenue.", "error");
+            }
+        });
+    </script>
+</body>
+</html>

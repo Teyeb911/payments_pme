@@ -290,6 +290,17 @@ def _detect(value):
     return threats
 
 
+def _detect_path(value):
+    if not isinstance(value, str):
+        return []
+    threats = []
+    if XSS_RE.search(value):
+        threats.append('XSS')
+    if TRAVERSAL_RE.search(value):
+        threats.append('PATH_TRAVERSAL')
+    return threats
+
+
 def _scan_request(request):
     threats = []
     try:
@@ -307,7 +318,7 @@ def _scan_request(request):
                     threats += _detect(f"{k}={v}")
             except Exception:
                 pass
-        threats += _detect(request.path)
+        threats += _detect_path(request.path)
     except Exception:
         pass
     return list(set(threats))
