@@ -3,7 +3,6 @@ from decimal import Decimal, InvalidOperation
 
 import requests
 from django.core.cache import cache
-from django.core.mail import send_mail
 from django.db import transaction
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -16,6 +15,7 @@ from rest_framework.views import APIView
 from apps.transactions.models import Transaction
 from apps.users.models import User
 from apps.wallets.models import Wallet
+from core.email import send_email_async
 from .models import MerchantPartner, PaymentRequest, SubscriptionPlan
 
 
@@ -165,7 +165,8 @@ class SendOTPView(APIView):
         otp = str(random.randint(100000, 999999))
         cache.set(f"otp_{payment_id}_{email}", otp, timeout=300)
 
-        send_mail(
+        send_email_async(
+            email,
             "TrackPay — Code de confirmation de paiement",
             "Bonjour,\n\n"
             "Votre code de confirmation pour le paiement de "
@@ -175,9 +176,6 @@ class SendOTPView(APIView):
             "Si vous n'êtes pas à l'origine de cette demande, "
             "ignorez cet email.\n\n"
             "TrackPay",
-            None,
-            [email],
-            fail_silently=False,
         )
 
         return Response({"message": "Code envoyé à votre email."}, status=status.HTTP_200_OK)
