@@ -9,7 +9,8 @@ class Transaction(TimeStampedModel):
     class Type(models.TextChoices):
         INTERNE     = 'interne',     'Transfert Interne'
         EXTERNE     = 'externe',     'Paiement Externe'
-        CHARGEMENT  = 'chargement',  'Chargement Wallet'
+        CHARGEMENT       = 'chargement',       'Chargement Wallet'
+        INTEROP_RECEIVED = 'interop_received', 'Reception interop'
 
     class Statut(models.TextChoices):
         PENDING   = 'pending',   'En attente'
