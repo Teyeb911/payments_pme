@@ -105,7 +105,7 @@ class CreatePaymentView(APIView):
         return Response(
             {
                 "payment_id": str(payment.id),
-                "payment_url": f"https://trackpay.mr/pay/{payment.id}",
+                "payment_url": f"https://config-ap28-1mhk.onrender.com/pay/{payment.id}",
                 "plan_name": plan.name,
                 "amount": str(plan.amount),
                 "expires_in": 900,
