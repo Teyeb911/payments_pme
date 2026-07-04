@@ -182,7 +182,7 @@ Authorization: Bearer <access\_token>
 Content-Type: application/json
 
 {
-  "email\_recepteur": "autre@commercant.com",
+  "telephone\_recepteur": "22220000",
   "montant": 5000,
   "description": "Règlement facture #42"
 }
@@ -218,4 +218,3 @@ Réponse :
 |Enterprise|7 990 MRU|Illimité|
 
 > Toutes les transactions \*\*internes\*\* entre commerçants sont \*\*gratuites\*\* (frais = 0).
-

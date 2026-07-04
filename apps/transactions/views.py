@@ -154,5 +154,5 @@ class AllTransactionsView(generics.ListAPIView):
     serializer_class   = TransactionSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
     filterset_class    = TransactionFilter
-    search_fields      = ['reference', 'commercant__email']
+    search_fields      = ['reference', 'commercant__telephone']
     ordering_fields    = ['created_at', 'montant', 'statut']

@@ -9,7 +9,7 @@ class TransactionAdmin(admin.ModelAdmin):
         'frais', 'statut', 'created_at'
     ]
     list_filter    = ['type', 'statut', 'created_at']
-    search_fields  = ['reference', 'commercant__email', 'description']
+    search_fields  = ['reference', 'commercant__telephone', 'description']
     readonly_fields = [
         'reference', 'frais', 'montant_total',
         'created_at', 'updated_at'

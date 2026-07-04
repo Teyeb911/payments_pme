@@ -48,7 +48,7 @@ class TransfertService:
             frais=0,  # Toujours gratuit (INTERNE)
             type=Transaction.Type.INTERNE,
             statut=Transaction.Statut.SUCCESS,
-            description=description or f'Transfert vers {recepteur.email}',
+            description=description or f'Transfert vers {recepteur.telephone}',
         )
 
         return transaction
