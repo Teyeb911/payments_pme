@@ -58,6 +58,7 @@ LOCAL_APPS = [
     'apps.integrations',
     'apps.abonnements',
     'apps.kyc',
+    'apps.notifications',
     'payments',
     'interop',
 ]

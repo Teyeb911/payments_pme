@@ -5,6 +5,16 @@ from .models import Transaction
 User = get_user_model()
 
 
+def _normalize_phone(value):
+    # Chiffres uniquement, sans l'indicatif mauritanien (222 / 00222).
+    digits = ''.join(ch for ch in str(value) if ch.isdigit())
+    if digits.startswith('00222'):
+        digits = digits[5:]
+    elif digits.startswith('222') and len(digits) > 8:
+        digits = digits[3:]
+    return digits
+
+
 class TransactionSerializer(serializers.ModelSerializer):
     commercant_telephone = serializers.CharField(source='commercant.telephone', read_only=True)
     expediteur_telephone = serializers.CharField(source='wallet_expediteur.commercant.telephone', read_only=True)
@@ -38,11 +48,18 @@ class TransfertInterneSerializer(serializers.Serializer):
         if not telephone:
             raise serializers.ValidationError('Numero de telephone requis.')
 
-        recepteurs = User.objects.filter(
-            telephone=telephone,
+        # Comparaison tolérante au format : "+222 45 25 00 00", "45250000"
+        # et "0022245250000" désignent le même numéro.
+        local = _normalize_phone(telephone)
+        if len(local) < 8:
+            raise serializers.ValidationError('Numero de telephone invalide.')
+        # Filtre en Python : les numéros stockés peuvent contenir espaces/indicatif.
+        candidats = User.objects.only('id', 'telephone').filter(
             role='commercant',
             is_active=True,
         )
+        ids = [u.id for u in candidats if _normalize_phone(u.telephone or '') == local]
+        recepteurs = User.objects.filter(id__in=ids)
         count = recepteurs.count()
         if count == 0:
             raise serializers.ValidationError('Commercant destinataire introuvable.')

@@ -51,6 +51,10 @@ class TransfertService:
             description=description or f'Transfert vers {recepteur.telephone}',
         )
 
+        # Notifications push, envoyées seulement après validation en base
+        from apps.notifications.push import notify_transfer
+        db_transaction.on_commit(lambda: notify_transfer(transaction))
+
         return transaction
 
     @staticmethod
