@@ -85,12 +85,19 @@ def full_verification(document_b64, selfie_b64, face_b64=None, client_ip=''):
     doc = _post('/api/kyc/document/verify', {
         'document_image': document_b64, 'tenant_id': t,
     })
-    face = _post('/api/kyc/face/verify', {
-        'document_image': face_b64 or document_b64,
-        'selfie_image': selfie_b64,
-        'perform_liveness': True,
-        'tenant_id': t,
-    })
+    try:
+        face = _post('/api/kyc/face/verify', {
+            'document_image': face_b64 or document_b64,
+            'selfie_image': selfie_b64,
+            'perform_liveness': True,
+            'tenant_id': t,
+        })
+        face_detected = True
+    except NovaError as exc:
+        # NovaKYC répond 500 quand aucun visage n'est détecté (carte ou selfie).
+        logger.warning('NovaKYC face/verify : %s', exc)
+        face = {'verified': False, 'similarity': 0, 'liveness_score': 0}
+        face_detected = False
     try:
         risk = _post('/api/kyc/risk/score', {
             'tenant_id': t,
@@ -117,10 +124,14 @@ def full_verification(document_b64, selfie_b64, face_b64=None, client_ip=''):
         },
     })
 
+    reasons = list(decision.get('rejection_reasons') or [])
+    if not face_detected and 'FACE_NOT_DETECTED' not in reasons:
+        reasons.insert(0, 'FACE_NOT_DETECTED')
+
     return {
-        'kyc_passed': bool(decision.get('kyc_passed')),
-        'status': decision.get('status', 'REJECTED'),
-        'rejection_reasons': decision.get('rejection_reasons') or [],
+        'kyc_passed': bool(decision.get('kyc_passed')) and face_detected,
+        'status': decision.get('status', 'REJECTED') if face_detected else 'REJECTED',
+        'rejection_reasons': reasons,
         'similarity': float(face.get('similarity') or 0),
         'liveness_score': liveness_score,
         'document_valid': bool(doc.get('valid')),

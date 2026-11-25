@@ -1,8 +1,9 @@
 """Envoi des emails TrackPay (codes de vérification, réinitialisation…).
 
-1. Voie principale : SMTP Gmail via Django (EMAIL_HOST_USER + EMAIL_HOST_PASSWORD,
+1. Brevo (API HTTP, BREVO_API_KEY) — requis sur Render gratuit qui bloque le SMTP.
+2. SMTP Gmail via Django (EMAIL_HOST_USER + EMAIL_HOST_PASSWORD,
    où le mot de passe est un « mot de passe d'application » Google de 16 lettres).
-2. Secours : l'ancien microservice HTTP, seulement si EMAIL_MICROSERVICE_KEY est défini.
+3. Secours : l'ancien microservice HTTP, seulement si EMAIL_MICROSERVICE_KEY est défini.
 
 Le texte brut des vues est conservé ; une version HTML aux couleurs TrackPay
 est générée automatiquement (le code à 6 chiffres est mis en avant).
@@ -85,7 +86,41 @@ def _send_microservice(to: str, subject: str, body: str) -> bool:
     return False
 
 
+def _send_brevo(to: str, subject: str, body: str) -> bool:
+    """API HTTP Brevo (port 443) : fonctionne sur Render, qui bloque le SMTP
+    sur les instances gratuites. Expéditeur = BREVO_SENDER (adresse vérifiée
+    dans Brevo), par défaut EMAIL_HOST_USER."""
+    api_key = config('BREVO_API_KEY', default='')
+    if not api_key:
+        return False
+    sender = config('BREVO_SENDER', default='') or settings.EMAIL_HOST_USER
+    try:
+        resp = requests.post(
+            'https://api.brevo.com/v3/smtp/email',
+            headers={'api-key': api_key, 'accept': 'application/json'},
+            json={
+                'sender': {'name': 'TrackPay', 'email': sender},
+                'to': [{'email': to}],
+                'subject': subject,
+                'textContent': body,
+                'htmlContent': _html(subject, body),
+            },
+            timeout=15,
+        )
+        if resp.status_code in (200, 201, 202):
+            logger.info('Email envoyé (Brevo) à %s', to)
+            return True
+        logger.error('Brevo %s : %s', resp.status_code, resp.text[:300])
+    except Exception as exc:  # noqa: BLE001
+        logger.error('Brevo : %s', exc)
+    return False
+
+
 def send_email(to: str, subject: str, body: str) -> bool:
+    # 1. Brevo (HTTP) si configuré — seule voie qui marche sur Render gratuit.
+    if _send_brevo(to, subject, body):
+        return True
+    # 2. SMTP Gmail — marche en local et sur les hébergeurs qui l'autorisent.
     if _send_smtp(to, subject, body):
         return True
     if _send_microservice(to, subject, body):
